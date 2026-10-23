@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from .chains import build_world, resolve_fact
 from .faults import FaultInjector
-from .scorer import grade_dependent
+from .scorer import classify_write, grade_dependent, grade_origin
 
 
 @dataclass
@@ -48,6 +48,46 @@ def run_origin(chain: dict, agent, fault_condition: str, seed: int = 0) -> Traje
         claim=claim,
         world=world,
     )
+
+
+def run_chain(chain: dict, origin_agent, fault_condition: str, policy,
+              seed: int = 0, dependent_mode: str = "revising") -> dict:
+    """Execute one full chain under one memory policy x one fault condition.
+
+    Session 1 runs under the fault; the policy writes memory from the
+    resulting trajectory; Sessions 2-4 then run against that memory, with
+    the correction event delivered before Session 4. Works for any of
+    M0-M5 and any fault condition. Returns everything the frozen metrics
+    need: the origin grade, the policy's write log record, the stored
+    memory and its false-memory classification, and the graded dependent
+    outcomes (from which Propagation, Persistence and Correction
+    Resistance are computed).
+    """
+    from .agents import DependentAgent  # local import to avoid a cycle
+
+    trajectory = run_origin(chain, origin_agent, fault_condition, seed=seed)
+    memory = policy.write(trajectory, chain, trajectory.world)
+    correction = correction_event(chain, trajectory.world)
+    dependents = []
+    for spec in chain["dependents"]:
+        outcome, grade = run_dependent(
+            chain, trajectory.world,
+            DependentAgent(memory, mode=dependent_mode), spec,
+            correction=correction,
+        )
+        dependents.append({"spec": spec, "outcome": outcome, "grade": grade})
+    return {
+        "chain_id": chain["chain_id"],
+        "policy": policy.name,
+        "fault_condition": fault_condition,
+        "trajectory": trajectory,
+        "origin_grade": grade_origin(trajectory, chain),
+        "memory": memory,
+        "write_falsified": classify_write(memory, trajectory, chain),
+        "write_log": policy.write_log[-1] if getattr(policy, "write_log", None) else None,
+        "correction": correction,
+        "dependents": dependents,
+    }
 
 
 def correction_event(chain: dict, world) -> dict:
