@@ -9,7 +9,7 @@ import pytest
 from persistbench.agents import DependentAgent, NaiveAgent, OracleAgent
 from persistbench.chains import CHAINS
 from persistbench.faults import SILENT_WRONG_VALUE, STALE_VALUE
-from persistbench.memory import M0NoMemory, M1SelfSummary, M2Disclosure, M5OracleTruth
+from persistbench.memory import M0NoMemory, M1SelfSummary, M5OracleTruth
 from persistbench.runner import correction_event, run_dependent, run_origin
 from persistbench.scorer import classify_write
 
@@ -58,12 +58,13 @@ def test_m5_write_is_never_falsified(chain):
     assert classify_write(memory, traj, chain) == []
 
 
-def test_m0_writes_nothing_and_m2_is_a_week2_build():
+def test_m0_writes_nothing():
+    # Week 1 also asserted here that M2 still raised NotImplementedError.
+    # Week 2 implements M2-M4, superseding that stub assertion; M2-M4
+    # behaviour is covered in tests/test_week2_policies.py.
     chain = CHAINS[0]
     traj = run_origin(chain, NAIVE, SILENT_WRONG_VALUE, seed=1)
     assert M0NoMemory().write(traj, chain, traj.world) is None
-    with pytest.raises(NotImplementedError):
-        M2Disclosure().write(traj, chain, traj.world)
 
 
 # ---- propagation into Session 2 ----------------------------------------------
