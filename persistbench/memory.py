@@ -212,17 +212,163 @@ class M2Disclosure(MemoryPolicy):
 
 
 class M3EvidenceContract(MemoryPolicy):
+    """Structured evidence-contract write (design freeze, Section 5).
+
+    Every claim in the agent's summary becomes a structured claim with a
+    status and an evidence pointer into the trajectory's tool responses:
+
+    - ``verified`` — a tool observation supports the claimed value. The
+      value is written to the fact store.
+    - ``failed`` — the claim is contradicted by its evidence: a fact claim
+      whose observations all disagree, or a success claim made after an
+      observed tool error. For ``task_success`` the store records False
+      (the outcome the evidence supports); a contradicted fact value is
+      not written as fact.
+    - ``unknown`` — no tool observation supports the claim. It is stored
+      only in the claims record, never in the fact store and never as
+      verified — the contract's core rule.
+
+    Evidence means tool observations, never DB state (that is M4). Under
+    silent/stale faults the corrupted response is itself the supporting
+    observation, so the false claim is verified here by construction —
+    the documented boundary of the contract, and the reason H3 orders
+    M3 below M4.
+    """
+
     name = "M3"
 
     def write(self, trajectory, chain: dict, world):
-        raise NotImplementedError("M3 lands in the Week 2 evidence-contract commit")
+        claim = dict(trajectory.claim)
+        observations = observed_values(trajectory)
+        errors = observed_errors(trajectory)
+        claims = []
+        store: dict = {}
+
+        fact_keys = [k for k in claim if k != "task_success"]
+        for key in fact_keys:
+            value = claim[key]
+            seen = observations.get(key, [])
+            supporting = [o for o in seen if o["value"] == value]
+            if supporting:
+                status = "verified"
+                evidence = {"step": supporting[0]["step"],
+                            "tool": supporting[0]["tool"],
+                            "field": supporting[0]["field"]}
+                store[key] = value
+                stored = True
+            elif seen:
+                status = "failed"
+                evidence = {"step": seen[0]["step"], "tool": seen[0]["tool"],
+                            "field": seen[0]["field"]}
+                stored = False
+            else:
+                status = "unknown"
+                evidence = None
+                stored = False
+            claims.append({
+                "fact": key, "claimed": value, "status": status,
+                "evidence": evidence, "stored": stored,
+                "stored_value": value if stored else None,
+            })
+
+        if "task_success" in claim:
+            claimed_success = claim["task_success"]
+            facts_verified = all(c["status"] == "verified" for c in claims)
+            if not claimed_success:
+                status, stored_value = "failed", False
+                evidence = None
+            elif errors:
+                status, stored_value = "failed", False
+                evidence = {"step": errors[0]["step"], "tool": errors[0]["tool"],
+                            "error": errors[0]["error"]}
+            elif facts_verified:
+                status, stored_value = "verified", True
+                evidence = {"basis": "all fact claims verified"}
+            else:
+                status, stored_value = "unknown", None
+                evidence = None
+            if stored_value is not None:
+                store["task_success"] = stored_value
+            claims.append({
+                "fact": "task_success", "claimed": claimed_success,
+                "status": status, "evidence": evidence,
+                "stored": stored_value is not None,
+                "stored_value": stored_value,
+            })
+
+        store["_claims"] = claims
+        entries = [{
+            "fact": c["fact"], "claimed": c["claimed"],
+            "stored_value": c["stored_value"], "stored": c["stored"],
+            "status": c["status"], "evidence": c["evidence"],
+        } for c in claims]
+        return self._record(trajectory, chain, entries, store)
 
 
 class M4StateVerified(MemoryPolicy):
+    """State-verified write (design freeze, Section 5): the system-side
+    guard. Every claimed entry is checked against the world DB end-state
+    (``resolve_fact``) before storage:
+
+    - claimed == DB state -> ``accepted``, stored as claimed;
+    - claimed != DB state, DB holds a value -> ``corrected`` to the DB
+      value, stored with provenance ``state-verified``;
+    - claimed != DB state, DB holds no such fact -> ``rejected`` (nothing
+      stored);
+    - a chain fact the claim omitted -> ``generated`` from the DB;
+    - a claimed key that is neither a chain fact nor ``task_success`` ->
+      ``rejected`` (not a fact this world can verify).
+
+    Nothing contradicting the DB is ever stored, so fault-derived false
+    memories are eliminated by construction; the price is exactly the
+    correction/rejection/generation accounting in the write log.
+    """
+
     name = "M4"
 
     def write(self, trajectory, chain: dict, world):
-        raise NotImplementedError("M4 lands in the Week 2 state-verified commit")
+        claim = dict(trajectory.claim)
+        truth = {key: resolve_fact(world, chain, key)
+                 for key in chain["intended_facts"]}
+        truth["task_success"] = all(
+            truth[key] == value for key, value in chain["intended_facts"].items()
+        )
+        store: dict = {}
+        entries = []
+        for key, value in claim.items():
+            if key not in truth:
+                entries.append({
+                    "fact": key, "claimed": value, "stored_value": None,
+                    "stored": False, "action": "rejected",
+                    "provenance": "state-verified",
+                })
+                continue
+            db_value = truth[key]
+            if value == db_value:
+                action = "accepted"
+            elif db_value is None:
+                action = "rejected"
+            else:
+                action = "corrected"
+            stored = db_value is not None and action != "rejected"
+            if stored:
+                store[key] = db_value
+            entries.append({
+                "fact": key, "claimed": value,
+                "stored_value": db_value if stored else None,
+                "stored": stored, "action": action,
+                "provenance": "state-verified",
+            })
+        for key, db_value in truth.items():
+            if key in claim or db_value is None:
+                continue
+            store[key] = db_value
+            entries.append({
+                "fact": key, "claimed": None, "stored_value": db_value,
+                "stored": True, "action": "generated",
+                "provenance": "state-verified",
+            })
+        return self._record(trajectory, chain, entries, store)
 
 
 class M5OracleTruth(MemoryPolicy):
@@ -240,4 +386,7 @@ class M5OracleTruth(MemoryPolicy):
         return self._record(trajectory, chain, entries, memory)
 
 
-POLICIES = {p.name: p for p in (M0NoMemory(), M1SelfSummary(), M5OracleTruth())}
+POLICIES = {p.name: p for p in (
+    M0NoMemory(), M1SelfSummary(), M2Disclosure(),
+    M3EvidenceContract(), M4StateVerified(), M5OracleTruth(),
+)}
