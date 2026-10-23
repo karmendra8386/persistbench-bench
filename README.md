@@ -8,11 +8,17 @@ Paper: Karmendra Pandey, *"Fail-Plausible, Then Persistent"* (working title). Ou
 
 ## Provenance — read this first
 
-**Week 1 = harness and design only. There are no LLM results yet, and nothing in this repo is a finding.** What exists:
+**Weeks 1–2 = harness, design, and policy machinery only. There are no LLM results yet, and nothing in this repo is a finding.** What exists:
 
-- `docs/design-freeze.md` — the frozen design: RQ1–RQ5 / H1–H5, environment, fault conditions, memory policies M0–M5 (interface frozen; M2–M4 build in Week 2), six metrics, paired statistics plan.
+- `docs/design-freeze.md` — the frozen design: RQ1–RQ5 / H1–H5, environment, fault conditions, memory policies M0–M5, six metrics, paired statistics plan.
 - `docs/preregistration-draft.md` — hypotheses, conditions, primary metrics, analysis plan, and the four pre-registered falsification checks.
 - A working deterministic harness with scripted agents, validated by the test suite below.
+- **Week 2 (code half, complete):** memory policies **M0–M5 all implemented** under the frozen interface — M2 (self-summary + disclosure/provenance annotation), M3 (structured evidence-contract write), M4 (state-verified write with correction/rejection accounting) join Week 1's M0/M1/M5. Every policy records a per-write log (entries + cost placeholders) sufficient to compute the frozen metrics, and `runner.run_chain` executes a full chain under any policy × any fault. The Week 2 **pilot** (live models, formation rates) is **pending GPU sequencing** after the latent paper's runs — no GPU has been used for PersistBench yet.
+
+Two implementation notes that matter for reading the machinery (both follow the design freeze; flagged here so they are not mistaken for findings):
+
+- **M3's evidence is tool observations, never DB state** (checking state is M4's definition). Under explicit-error and empty/partial faults the contract therefore stores no false claim as fact. Under silent-wrong-value and stale faults, the corrupted response *is* the supporting observation, so M3 marks the false claim `verified` — the contract's boundary, asserted in the tests, and exactly why H3 orders M3 below M4.
+- **M4 corrects rather than merely rejects** where the DB holds a value (rejection is reserved for facts the DB does not hold and for unverifiable keys). Its write log accounts for every falsified field as corrected-or-rejected, and on no-fault writes it corrects/rejects nothing — pre-registration falsification check 3 (a guard that destroys legitimate utility is not viable) is tested directly.
 
 Live-model runs (Qwen2.5-7B, Qwen3-8B, Llama-3.1-8B, Mistral-7B; ~3,600 sessions) are Weeks 3–4 of the plan. Any number quoted from this repo before then is a property of the scripted harness, not of any model.
 
@@ -25,7 +31,7 @@ persistbench/
   faults.py    seeded fault injection: no_fault / explicit_error /
                empty_partial / silent_wrong_value / stale_value
   agents.py    scripted oracle + naive origin agents; dependent agent
-  memory.py    memory policies M0–M5 (Week 1 interface freeze)
+  memory.py    memory policies M0–M5 (all implemented, Week 2) + write logs
   scorer.py    programmatic grading vs DB end-state — no LLM judge
   runner.py    origin / dependent trajectory runners
 tests/         pytest suite, incl. the Week 1 exit criterion
@@ -49,14 +55,23 @@ Run it:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install pytest
-.venv/bin/python -m pytest -q   # 329 passed, 10 skipped (skips: Session-2 task
+.venv/bin/python -m pytest -q   # 1140 passed, 10 skipped (skips: Session-2 task
                                 # does not depend on that chain's corrupted fact)
 ```
 
 Standard library only at run time; pytest is the sole dev dependency.
 
+## Week 2 policy evidence (machinery, not results)
+
+Verified by `tests/test_week2_policies.py` (811 cases) over all 12 chains × 5 fault conditions, with scripted agents:
+
+- **M4:** the stored write is never falsified, under any fault, for either scripted agent; its content matches the M5 oracle store; its log's corrected+rejected entries are exactly the scorer's falsified fields; on no-fault writes it accepts everything and its store equals M1's.
+- **M3:** under explicit-error / empty-partial faults the whole write classifies clean (success claims stored `failed` / `unknown`, never verified); under no fault every claim is verified and downstream behaviour matches M1. Under silent/stale faults the false claim is stored `verified` on the corrupted observation's evidence — the documented boundary above.
+- **M2:** the claim is stored verbatim with provenance on every entry (`verified_against_state: False` throughout); observed tool errors appear in the disclosures, and a success claim past an observed error is annotated `contradicted_by_observation`. Downstream behaviour matches M1 exactly — the annotation, not filtering, is M2's guard.
+- **Correction:** where a guard kept the false memory out (M3/M4 under evidence-visible faults; M4 under all faults), even a stubborn agent's Session 4 is correct. Where the lie reached the store (M2/M3 under silent/stale), the Week-1 pattern holds: stubborn resists, revising is repaired.
+
 ## Next (per the approved plan)
 
-- **Week 2:** memory store + live policies M2–M4; pilot (2 models × 6 chains) measuring Session-1 formation rates only; classifier validation gate (≥90% agreement with hand labels on 50 writes). Main risk retired here.
+- **Week 2 pilot (pending GPU sequencing):** 2 models × 6 chains measuring Session-1 formation rates only; classifier validation gate (≥90% agreement with hand labels on 50 writes). Main risk retired here. Sequenced after the latent paper's GPU runs.
 - **Weeks 3–4:** full runs; correction analysis; first results memo.
 - **Month 2:** LongMemEval + Mem0 transfer arms; write-up. Zenodo preprint week 8–10 after author review; NeurIPS 2027 Datasets & Benchmarks is the primary venue target.
