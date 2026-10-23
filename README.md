@@ -14,6 +14,7 @@ Paper: Karmendra Pandey, *"Fail-Plausible, Then Persistent"* (working title). Ou
 - `docs/preregistration-draft.md` — hypotheses, conditions, primary metrics, analysis plan, and the four pre-registered falsification checks.
 - A working deterministic harness with scripted agents, validated by the test suite below.
 - **Week 2 (code half, complete):** memory policies **M0–M5 all implemented** under the frozen interface — M2 (self-summary + disclosure/provenance annotation), M3 (structured evidence-contract write), M4 (state-verified write with correction/rejection accounting) join Week 1's M0/M1/M5. Every policy records a per-write log (entries + cost placeholders) sufficient to compute the frozen metrics, and `runner.run_chain` executes a full chain under any policy × any fault. The Week 2 **pilot** (live models, formation rates) is **pending GPU sequencing** after the latent paper's runs — no GPU has been used for PersistBench yet.
+- **Week 2 pilot execution package (complete, launch-gated):** `persistbench/llm_agent.py` (LLM origin agent behind a backend interface — deterministic fake backend for tests, HF transformers backend for real models; conservative JSON action parsing and claim extraction), real per-policy memory-write generation (M1 free-form summary, M2 under the disclosure instruction, M3 claims parsed into the evidence-contract format — unparseable claims are logged as `unknown`, never verified; M4 = model write through the state-verified policy), `persistbench/pilot.py` + `configs/pilot.json` + `scripts/run_pilot.py` (2 models × 6 chains × 5 faults × M0–M5, per-cell md/csv/jsonl outputs, and the 50-write hand-labelling sample export for the ≥90%-agreement classifier gate), and `kaggle/week2-pilot.ipynb` + `kaggle/RUNBOOK.md`. **One launch prerequisite is flagged in the RUNBOOK: this repo is local-only — it must be published to GitHub (or uploaded to Kaggle as files) before the notebook can acquire the code.** Plumbing was smoke-tested with a real tiny model from the local cache (Qwen2.5-0.5B-Instruct, CPU): see `results/smoke-llm-2026-10-23.md` — labelled SMOKE, not a result.
 
 Two implementation notes that matter for reading the machinery (both follow the design freeze; flagged here so they are not mistaken for findings):
 
@@ -34,6 +35,14 @@ persistbench/
   memory.py    memory policies M0–M5 (all implemented, Week 2) + write logs
   scorer.py    programmatic grading vs DB end-state — no LLM judge
   runner.py    origin / dependent trajectory runners
+  llm_agent.py LLM origin agent + per-policy write generation (Week 2
+               pilot prep; fake + HF transformers backends)
+  pilot.py     pilot config validation, grid runner, formation tables,
+               hand-labelling sample export + agreement gate
+configs/       pilot.json — the frozen pilot configuration
+scripts/       run_pilot.py — pilot entry point (launch-gated)
+kaggle/        week2-pilot.ipynb + RUNBOOK.md (launch procedure)
+results/       smoke evidence (labelled); pilot outputs land here
 tests/         pytest suite, incl. the Week 1 exit criterion
 docs/          design freeze + pre-registration draft
 ```
@@ -55,7 +64,7 @@ Run it:
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install pytest
-.venv/bin/python -m pytest -q   # 1140 passed, 10 skipped (skips: Session-2 task
+.venv/bin/python -m pytest -q   # 1158 passed, 10 skipped (skips: Session-2 task
                                 # does not depend on that chain's corrupted fact)
 ```
 
@@ -72,6 +81,6 @@ Verified by `tests/test_week2_policies.py` (811 cases) over all 12 chains × 5 f
 
 ## Next (per the approved plan)
 
-- **Week 2 pilot (pending GPU sequencing):** 2 models × 6 chains measuring Session-1 formation rates only; classifier validation gate (≥90% agreement with hand labels on 50 writes). Main risk retired here. Sequenced after the latent paper's GPU runs.
+- **Week 2 pilot (package ready, pending GPU sequencing):** 2 models × 6 chains × 5 faults × M0–M5 measuring Session-1 formation rates; classifier validation gate (≥90% agreement with hand labels on the exported 50-write sample). Main risk retired here. Launch per `kaggle/RUNBOOK.md`, sequenced after the latent paper's GPU runs — and note the RUNBOOK's repo-publication prerequisite (this repo is local-only).
 - **Weeks 3–4:** full runs; correction analysis; first results memo.
 - **Month 2:** LongMemEval + Mem0 transfer arms; write-up. Zenodo preprint week 8–10 after author review; NeurIPS 2027 Datasets & Benchmarks is the primary venue target.

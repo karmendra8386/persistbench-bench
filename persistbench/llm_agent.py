@@ -151,7 +151,7 @@ class HFTransformersBackend(ChatBackend):
 
     def __init__(self, model_id: str, load_in_4bit: bool = False,
                  max_new_tokens: int = 256, seed: int = 0,
-                 device_map: str = "auto"):
+                 device_map: str | None = None):
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -167,7 +167,11 @@ class HFTransformersBackend(ChatBackend):
         self.seed = seed
         self._torch = torch
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
-        model_kwargs = {"device_map": device_map}
+        # device_map stays unset unless requested (transformers 5.x
+        # requires accelerate for it; the Kaggle notebook installs it).
+        model_kwargs = {}
+        if device_map is not None:
+            model_kwargs["device_map"] = device_map
         if load_in_4bit:
             from transformers import BitsAndBytesConfig
 
