@@ -8,6 +8,7 @@ authors:
     orcid: "https://orcid.org/0009-0000-3461-9889"
 version: 0.1.0
 date-released: 2026-11-02
+doi: 10.5281/zenodo.23893975
 repository-code: "https://github.com/karmendra8386/persistbench-bench"
 url: "https://github.com/karmendra8386/persistbench-bench"
 abstract: "A deterministic benchmark for one unmeasured chain: a tool fails silently in Session 1, the agent writes its own account of the outcome into long-term memory, and different tasks in later sessions act on that memory — measuring cross-session propagation of silent agent failures, false-claim formation, and whether a write-time guard stops the propagation."

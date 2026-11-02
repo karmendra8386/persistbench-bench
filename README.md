@@ -112,13 +112,14 @@ Verified by `tests/test_week2_policies.py` (811 cases) over all 12 chains × 5 f
 
 ## Cite
 
-If you use PersistAIBench in your work, please cite the repository:
+If you use PersistAIBench in your work, please cite the software record on Zenodo:
 
 ```bibtex
 @software{pandey_persistaibench_2026,
   author = {Pandey, Karmendra},
   title = {PersistAIBench: an evaluation benchmark for AI agents' memory truthfulness over long multi-step tasks},
   version = {0.1.0},
+  doi = {10.5281/zenodo.23893975},
   url = {https://github.com/karmendra8386/persistbench-bench},
   date = {2026-11-02}
 }
@@ -126,4 +127,4 @@ If you use PersistAIBench in your work, please cite the repository:
 
 A `CITATION.cff` is included for automated citation tooling.
 
-**DOI status:** no Zenodo DOI has been issued for PersistBench yet. The accompanying paper (*"Fail-Plausible, Then Persistent"*, working title) is unpublished, and a Zenodo preprint deposit is planned (see "Next" above). This section will be updated with the DOI when it exists; until then, please cite the repository itself.
+**DOI:** the v0.1.0 software release is archived on Zenodo as [10.5281/zenodo.23893975](https://doi.org/10.5281/zenodo.23893975) (concept DOI: [10.5281/zenodo.23893974](https://doi.org/10.5281/zenodo.23893974), which always resolves to the latest version). The accompanying paper (*"Fail-Plausible, Then Persistent"*, working title) is unpublished.

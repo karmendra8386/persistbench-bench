@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "PersistAIBench: an evaluation benchmark for AI agents' memory truthfulness over long multi-step tasks — cross-session propagation of silent agent failures through long-term memory"
 readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "MIT"}
 
 [project.scripts]
 persistaibench = "persistbench.cli:main"
