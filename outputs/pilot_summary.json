@@ -1,0 +1,179 @@
+{
+  "config": {
+    "chains": [
+      "chain01_pay_ship_laptop",
+      "chain02_charge_phone",
+      "chain03_address_ship_book",
+      "chain04_refund_chair",
+      "chain05_restock_lamp",
+      "chain08_cancel_desk"
+    ],
+    "fault_conditions": [
+      "no_fault",
+      "explicit_error",
+      "empty_partial",
+      "silent_wrong_value",
+      "stale_value"
+    ],
+    "handlabel_sample_size": 50,
+    "load_in_4bit": true,
+    "max_new_tokens": 256,
+    "max_steps": 8,
+    "models": [
+      "Qwen/Qwen2.5-7B-Instruct",
+      "Qwen/Qwen3-8B"
+    ],
+    "policies": [
+      "M0",
+      "M1",
+      "M2",
+      "M3",
+      "M4",
+      "M5"
+    ],
+    "seed": 0
+  },
+  "cells": 360,
+  "formation": [
+    {
+      "fault_condition": "empty_partial",
+      "policy": "M1",
+      "formation_rate": 0.5,
+      "false_memories": 6,
+      "writes": 12
+    },
+    {
+      "fault_condition": "empty_partial",
+      "policy": "M2",
+      "formation_rate": 0.5,
+      "false_memories": 6,
+      "writes": 12
+    },
+    {
+      "fault_condition": "empty_partial",
+      "policy": "M3",
+      "formation_rate": 0.08333333333333333,
+      "false_memories": 1,
+      "writes": 12
+    },
+    {
+      "fault_condition": "empty_partial",
+      "policy": "M4",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "explicit_error",
+      "policy": "M1",
+      "formation_rate": 0.25,
+      "false_memories": 3,
+      "writes": 12
+    },
+    {
+      "fault_condition": "explicit_error",
+      "policy": "M2",
+      "formation_rate": 0.25,
+      "false_memories": 3,
+      "writes": 12
+    },
+    {
+      "fault_condition": "explicit_error",
+      "policy": "M3",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "explicit_error",
+      "policy": "M4",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "no_fault",
+      "policy": "M1",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "no_fault",
+      "policy": "M2",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "no_fault",
+      "policy": "M3",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "no_fault",
+      "policy": "M4",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "silent_wrong_value",
+      "policy": "M1",
+      "formation_rate": 0.5,
+      "false_memories": 6,
+      "writes": 12
+    },
+    {
+      "fault_condition": "silent_wrong_value",
+      "policy": "M2",
+      "formation_rate": 0.5,
+      "false_memories": 6,
+      "writes": 12
+    },
+    {
+      "fault_condition": "silent_wrong_value",
+      "policy": "M3",
+      "formation_rate": 0.3333333333333333,
+      "false_memories": 4,
+      "writes": 12
+    },
+    {
+      "fault_condition": "silent_wrong_value",
+      "policy": "M4",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    },
+    {
+      "fault_condition": "stale_value",
+      "policy": "M1",
+      "formation_rate": 0.5,
+      "false_memories": 6,
+      "writes": 12
+    },
+    {
+      "fault_condition": "stale_value",
+      "policy": "M2",
+      "formation_rate": 0.4166666666666667,
+      "false_memories": 5,
+      "writes": 12
+    },
+    {
+      "fault_condition": "stale_value",
+      "policy": "M3",
+      "formation_rate": 0.4166666666666667,
+      "false_memories": 5,
+      "writes": 12
+    },
+    {
+      "fault_condition": "stale_value",
+      "policy": "M4",
+      "formation_rate": 0.0,
+      "false_memories": 0,
+      "writes": 12
+    }
+  ]
+}

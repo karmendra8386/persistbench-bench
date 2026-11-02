@@ -1,5 +1,6 @@
-"""PersistBench — cross-session propagation of silent agent failures
-through long-term memory. Weeks 1-2: harness, design, and policy machinery; no LLM results.
+"""PersistAIBench (PersistBench) — cross-session propagation of silent
+agent failures through long-term memory. v0.1.0: harness, design, policy
+machinery, and the Week 2 formation pilot (see docs/results.md).
 """
 
-__version__ = "0.3.0-week2-pilot-prep"
+__version__ = "0.1.0"

@@ -3,10 +3,17 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "persistbench"
+name = "persistaibench"
 version = "0.1.0"
-description = "PersistBench: cross-session propagation of silent agent failures through long-term memory (Week 1 harness)"
+description = "PersistAIBench: an evaluation benchmark for AI agents' memory truthfulness over long multi-step tasks — cross-session propagation of silent agent failures through long-term memory"
+readme = "README.md"
 requires-python = ">=3.11"
+
+[project.scripts]
+persistaibench = "persistbench.cli:main"
+
+[project.urls]
+Repository = "https://github.com/karmendra8386/persistbench-bench"
 
 [tool.setuptools]
 packages = ["persistbench"]
