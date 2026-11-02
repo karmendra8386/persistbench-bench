@@ -84,3 +84,21 @@ Verified by `tests/test_week2_policies.py` (811 cases) over all 12 chains × 5 f
 - **Week 2 pilot (package ready, pending GPU sequencing):** 2 models × 6 chains × 5 faults × M0–M5 measuring Session-1 formation rates; classifier validation gate (≥90% agreement with hand labels on the exported 50-write sample). Main risk retired here. Launch per `kaggle/RUNBOOK.md`, sequenced after the latent paper's GPU runs — and note the RUNBOOK's repo-publication prerequisite (this repo is local-only).
 - **Weeks 3–4:** full runs; correction analysis; first results memo.
 - **Month 2:** LongMemEval + Mem0 transfer arms; write-up. Zenodo preprint week 8–10 after author review; NeurIPS 2027 Datasets & Benchmarks is the primary venue target.
+
+## Cite
+
+If you use PersistBench in your work, please cite the repository:
+
+```bibtex
+@software{pandey_persistbench_2026,
+  author = {Pandey, Karmendra},
+  title = {PersistBench: a benchmark for belief persistence and false-claim formation in LLM agents},
+  version = {0.1.0},
+  url = {https://github.com/karmendra8386/persistbench-bench},
+  date = {2026-11-01}
+}
+```
+
+A `CITATION.cff` is included for automated citation tooling.
+
+**DOI status:** no Zenodo DOI has been issued for PersistBench yet. The accompanying paper (*"Fail-Plausible, Then Persistent"*, working title) is unpublished, and a Zenodo preprint deposit is planned (see "Next" above). This section will be updated with the DOI when it exists; until then, please cite the repository itself.
