@@ -2,11 +2,11 @@
 
 ## Week 2 formation pilot (`week2-pilot.ipynb`)
 
-**Status: PREP ONLY — do not launch yet.** The pilot queues after the
-latent paper's staged Kaggle runs in the shared weekly GPU quota
-(30 h/week free tier, T4 x2). Launch only when that sequencing clears,
-and verify the actual remaining quota before committing (Settings →
-Quotas), exactly as for the latent launches.
+**Status: GO given Nov 2, 2026** (owner: "Yeah, go ahead"). The latent
+paper's staged Kaggle runs completed Nov 1, clearing the GPU
+sequencing. Verify the actual remaining quota before committing
+(Settings → Quotas; 30 h/week free tier, T4 x2), exactly as for the
+latent launches.
 
 **What it runs:** `scripts/run_pilot.py` with `configs/pilot.json` —
 2 models (Qwen/Qwen2.5-7B-Instruct, Qwen/Qwen3-8B, 4-bit) × 6 chains
@@ -17,18 +17,15 @@ six policies; the primary output is the Session-1 **false-memory
 formation rate** per fault × policy, scored programmatically
 (`scorer.classify_write`) — no LLM judge.
 
-### ⚠️ Prerequisite: the repo is local-only
+### Prerequisite: repo publication — RESOLVED Nov 1, 2026
 
-The PersistBench repo currently exists **only on the local machine**
-(no GitHub remote). The latent project's notebooks clone from GitHub;
-this one cannot until the repo is published. Before launch, either:
-
-- **(A)** create the GitHub repo (owner's call — do not create it as
-  part of a launch task without instruction), push, and set
-  `PERSISTBENCH_REPO_URL` in the notebook's acquisition cell; or
-- **(B)** upload the repo folder as a Kaggle dataset / direct upload so
-  that `/kaggle/working/persistbench/configs/pilot.json` exists when
-  the notebook starts.
+The PersistBench repo is published (public) at
+https://github.com/karmendra8386/persistbench-bench. The notebook's
+acquisition cell clones it by default (`PERSISTBENCH_REPO_URL` can
+override). Fallback **(B)** still works: upload the repo folder as a
+Kaggle dataset / direct upload so that
+`/kaggle/working/persistbench/configs/pilot.json` exists when the
+notebook starts.
 
 The acquisition cell hard-fails with these instructions if neither is
 in place — a failed-fast launch, by design, like the latent notebooks'
