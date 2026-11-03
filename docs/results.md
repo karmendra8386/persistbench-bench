@@ -1,5 +1,13 @@
 # PersistAIBench — results
 
+> **Audit notice (2026-11-02):** this pilot was audited the same day
+> (`docs/pilot-audit-2026-11-02.md`). The **pooled column in the table
+> below is withdrawn** — it averages one functioning arm with one
+> broken arm. Read per-model numbers only, with coverage and CIs, in
+> `outputs/pilot_stats.md` (recomputed by `scripts/pilot_stats.py`).
+> Reporting rules and scale-up gates are in
+> `docs/preregistration-amendment-2026-11-02.md`.
+
 ## Week 2 formation pilot (2026-11-02) — the first live-model results
 
 **What this measures.** The Session-1 **false-memory formation rate**:

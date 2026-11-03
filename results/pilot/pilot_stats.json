@@ -1,0 +1,225 @@
+{
+ "per_model_policy": {
+  "Qwen/Qwen2.5-7B-Instruct|M1": {
+   "formation": [
+    0.7,
+    0.5212421239810444,
+    0.8333525181143747
+   ],
+   "coverage": [
+    30,
+    30
+   ],
+   "formation_nonempty": [
+    0.7,
+    0.5212421239810444,
+    0.8333525181143747
+   ]
+  },
+  "Qwen/Qwen2.5-7B-Instruct|M2": {
+   "formation": [
+    0.6666666666666666,
+    0.4878005150467802,
+    0.8076950200327357
+   ],
+   "coverage": [
+    30,
+    30
+   ],
+   "formation_nonempty": [
+    0.6666666666666666,
+    0.4878005150467802,
+    0.8076950200327357
+   ]
+  },
+  "Qwen/Qwen2.5-7B-Instruct|M3": {
+   "formation": [
+    0.3333333333333333,
+    0.19230497996726426,
+    0.5121994849532198
+   ],
+   "coverage": [
+    20,
+    30
+   ],
+   "formation_nonempty": [
+    0.5,
+    0.2992980068701797,
+    0.7007019931298203
+   ]
+  },
+  "Qwen/Qwen2.5-7B-Instruct|M4": {
+   "formation": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ],
+   "coverage": [
+    30,
+    30
+   ],
+   "formation_nonempty": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ]
+  },
+  "Qwen/Qwen3-8B|M1": {
+   "formation": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ],
+   "coverage": [
+    1,
+    30
+   ],
+   "formation_nonempty": [
+    0.0,
+    0.0,
+    0.7934506882081973
+   ]
+  },
+  "Qwen/Qwen3-8B|M2": {
+   "formation": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ],
+   "coverage": [
+    0,
+    30
+   ],
+   "formation_nonempty": [
+    null,
+    null,
+    null
+   ]
+  },
+  "Qwen/Qwen3-8B|M3": {
+   "formation": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ],
+   "coverage": [
+    0,
+    30
+   ],
+   "formation_nonempty": [
+    null,
+    null,
+    null
+   ]
+  },
+  "Qwen/Qwen3-8B|M4": {
+   "formation": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ],
+   "coverage": [
+    30,
+    30
+   ],
+   "formation_nonempty": [
+    0.0,
+    0.0,
+    0.11351339476145204
+   ]
+  }
+ },
+ "qwen25_m1_by_fault": {
+  "no_fault": [
+   0.0,
+   0.0,
+   0.39033429165637346
+  ],
+  "explicit_error": [
+   0.5,
+   0.18761630498040816,
+   0.8123836950195918
+  ],
+  "empty_partial": [
+   1.0,
+   0.6096657083436265,
+   1.0
+  ],
+  "silent_wrong_value": [
+   1.0,
+   0.6096657083436265,
+   1.0
+  ],
+  "stale_value": [
+   1.0,
+   0.6096657083436265,
+   1.0
+  ]
+ },
+ "field_level_qwen25": {
+  "M1": {
+   "false_instances": 31,
+   "stored_entries": 108,
+   "rate": 0.28703703703703703
+  },
+  "M2": {
+   "false_instances": 30,
+   "stored_entries": 106,
+   "rate": 0.2830188679245283
+  },
+  "M3": {
+   "false_instances": 10,
+   "stored_entries": 59,
+   "rate": 0.1694915254237288
+  }
+ },
+ "mcnemar_qwen25": {
+  "M1_vs_M2": {
+   "b_M1only": 1,
+   "c_otheronly": 0,
+   "p_exact": 1.0
+  },
+  "M1_vs_M3": {
+   "b_M1only": 11,
+   "c_otheronly": 0,
+   "p_exact": 0.0009765625
+  },
+  "M1_vs_M4": {
+   "b_M1only": 21,
+   "c_otheronly": 0,
+   "p_exact": 9.5367431640625e-07
+  }
+ },
+ "m4_zero": {
+  "n": 30,
+  "clopper_pearson_upper95": 0.09503385285530419
+ },
+ "tokens": {
+  "Qwen/Qwen2.5-7B-Instruct": {
+   "origin_tokens_total": 154566,
+   "write_tokens_total": 41387,
+   "origin_per_unique_origin": 858.7
+  },
+  "Qwen/Qwen3-8B": {
+   "origin_tokens_total": 988500,
+   "write_tokens_total": 56730,
+   "origin_per_unique_origin": 5491.666666666667
+  },
+  "Qwen/Qwen2.5-7B-Instruct|M1_write": 9342,
+  "Qwen/Qwen2.5-7B-Instruct|M2_write": 10225,
+  "Qwen/Qwen2.5-7B-Instruct|M3_write": 12478,
+  "Qwen/Qwen2.5-7B-Instruct|M4_write": 9342
+ },
+ "handlabel": {
+  "overall": [
+   50,
+   50
+  ],
+  "nonempty_only": [
+   27,
+   27
+  ],
+  "empty_rows": 23,
+  "rule_of_three_upper_nonempty": 0.1111111111111111
+ }
+}

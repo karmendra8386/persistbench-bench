@@ -109,6 +109,29 @@ def _word_count(text: str) -> int:
     return len(text.split())
 
 
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
+_THINK_OPEN_RE = re.compile(r"<think>.*$", re.DOTALL)
+
+
+def strip_thinking(text: str) -> str:
+    """Remove reasoning-model ``<think>`` blocks from model output.
+
+    Closed blocks are dropped entirely (the answer follows them). An
+    *unclosed* block means generation was cut off mid-reasoning and no
+    answer was ever emitted, so everything from the opening tag on is
+    dropped too — the caller then sees an empty/answerless reply and
+    scores it as a parse failure, never as content. This is defence in
+    depth: the primary fix for thinking models is disabling thinking at
+    the chat template (see ``HFTransformersBackend``), because reasoning
+    text also burns the generation budget before any answer exists.
+    """
+    if not text or "<think>" not in text:
+        return text or ""
+    text = _THINK_BLOCK_RE.sub("", text)
+    text = _THINK_OPEN_RE.sub("", text)
+    return text.strip()
+
+
 class FakeLLMBackend(ChatBackend):
     """Deterministic scripted backend for tests.
 
@@ -151,7 +174,8 @@ class HFTransformersBackend(ChatBackend):
 
     def __init__(self, model_id: str, load_in_4bit: bool = False,
                  max_new_tokens: int = 256, seed: int = 0,
-                 device_map: str | None = None):
+                 device_map: str | None = None,
+                 enable_thinking: bool | None = None):
         try:
             import torch
             from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -165,6 +189,16 @@ class HFTransformersBackend(ChatBackend):
         self.model_label = model_id
         self.max_new_tokens = max_new_tokens
         self.seed = seed
+        # Thinking models (Qwen3 family) reason inside <think> blocks by
+        # default. In the Week-2 pilot that consumed the whole 256-token
+        # budget before any FACTS block was emitted: 652 parse failures
+        # and empty stores in 89/90 M1-M3 cells, i.e. a measurement
+        # failure, not a model result. Default thinking OFF for those
+        # models (Qwen's own documented non-thinking mode); every other
+        # model is left exactly as its template defaults.
+        if enable_thinking is None and "qwen3" in model_id.lower():
+            enable_thinking = False
+        self.enable_thinking = enable_thinking
         self._torch = torch
         self.tokenizer = AutoTokenizer.from_pretrained(model_id)
         # device_map stays unset unless requested (transformers 5.x
@@ -189,9 +223,22 @@ class HFTransformersBackend(ChatBackend):
         budget = max_new_tokens or self.max_new_tokens
         tokenizer = self.tokenizer
         if getattr(tokenizer, "chat_template", None):
-            prompt = tokenizer.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
+            if self.enable_thinking is not None:
+                try:
+                    prompt = tokenizer.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True,
+                        chat_template_kwargs={
+                            "enable_thinking": self.enable_thinking
+                        },
+                    )
+                except TypeError:  # template without a thinking switch
+                    prompt = tokenizer.apply_chat_template(
+                        messages, tokenize=False, add_generation_prompt=True
+                    )
+            else:
+                prompt = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
         else:  # pragma: no cover - all pilot/smoke models ship a template
             prompt = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
             prompt += "\nassistant:"
@@ -206,6 +253,9 @@ class HFTransformersBackend(ChatBackend):
             )
         new_ids = output[0][prompt_tokens:]
         text = tokenizer.decode(new_ids, skip_special_tokens=True)
+        # Defence in depth: even with thinking disabled at the template,
+        # never let a stray reasoning block reach the parsers.
+        text = strip_thinking(text)
         return Generation(text=text, prompt_tokens=prompt_tokens,
                           completion_tokens=int(new_ids.shape[0]))
 
@@ -225,7 +275,9 @@ def parse_action(text: str):
     """
     if not text or not text.strip():
         return None, "empty reply"
-    candidate = text.strip()
+    candidate = strip_thinking(text).strip()
+    if not candidate:
+        return None, "empty reply after stripping reasoning"
     if candidate.startswith("```"):
         candidate = candidate.strip("`")
         if candidate.lower().startswith("json"):
@@ -305,7 +357,10 @@ def extract_claims(summary_text: str, chain: dict) -> ClaimExtraction:
     known["task_success"] = True  # exemplar for typing
     result = ClaimExtraction()
     seen = set()
-    for line in (summary_text or "").splitlines():
+    # Reasoning text is never evidence: a value the model merely
+    # considered inside <think> must not be extracted as an assertion.
+    summary_text = strip_thinking(summary_text or "")
+    for line in summary_text.splitlines():
         match = _ASSERTION_RE.match(line)
         if not match:
             continue
@@ -508,7 +563,12 @@ class LLMAgent:
                                           "writing your end-of-session memory."},
             {"role": "user", "content": base + instruction},
         ]
-        generation = self.backend.generate(messages, seed=seed)
+        # Writes get a larger budget than tool actions: a prose summary
+        # plus a 5-line FACTS block does not fit reliably in the 256-token
+        # action budget (Qwen2.5-7B hit that cap in 79/90 M1-M3 writes in
+        # the Week-2 pilot). Actions stay at the backend default.
+        generation = self.backend.generate(messages, max_new_tokens=512,
+                                           seed=seed)
         extraction = extract_claims(generation.text, chain)
         return WriteGeneration(
             style=style,

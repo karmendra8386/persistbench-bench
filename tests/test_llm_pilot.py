@@ -18,6 +18,7 @@ from persistbench.llm_agent import (
     LLMAgent,
     extract_claims,
     parse_action,
+    strip_thinking,
 )
 from persistbench.memory import POLICIES
 from persistbench.pilot import (
@@ -188,6 +189,34 @@ def test_generate_write_claims_style_unparseable_is_unknown():
 # ---------------------------------------------------------------------------
 # Pilot configuration + runner
 # ---------------------------------------------------------------------------
+
+def test_strip_thinking_closed_and_unclosed():
+    assert strip_thinking("<think>reasoning</think>\nAnswer.") == "Answer."
+    # Unclosed block = generation died mid-reasoning; no answer exists.
+    assert strip_thinking("<think>reasoning that never ends") == ""
+    assert strip_thinking("plain text") == "plain text"
+    assert strip_thinking("") == ""
+
+
+def test_parse_action_ignores_think_block():
+    text = '<think>let me decide</think>\n{"tool": "charge_payment", "args": {"order_id": "O1"}}'
+    action, error = parse_action(text)
+    assert error is None and action["tool"] == "charge_payment"
+    action, error = parse_action("<think>truncated reasoning")
+    assert action is None and error
+
+
+def test_extract_claims_never_reads_think_block():
+    # A value merely considered inside reasoning must not be extracted;
+    # only the post-think FACTS block counts.
+    text = (
+        "<think>\ntracking: TRK-999999\n</think>\nFACTS\n"
+        "order_status: shipped\npayment_status: captured\n"
+        "charged_cents: 150000\ntracking: TRK-000001\ntask_success: true\n"
+    )
+    extraction = extract_claims(text, CHAIN01)
+    assert extraction.claim["tracking"] == "TRK-000001"
+
 
 def test_pilot_config_validation():
     config = default_config()
