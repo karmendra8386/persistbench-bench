@@ -75,7 +75,51 @@ stands as frozen on 2026-10-23.
     chain subset, after the main grid, to bound generality — as
     Month-2 in the original freeze, now with G2's harness.
 
-## E. What this amendment does NOT change
+## F. Additions from the literature broadening (2026-11-02, later same day)
+
+Full research memo: the ranked gap list in the audit's research
+appendix (AgentPoison, MINJA, MemForm, Sunil et al., LongMemEval,
+LoCoMo, MemoryAgentBench, BEAM, A-MemGuard, MemoryArena, τ-bench).
+
+12. **Write yield is a co-primary outcome.** Parse-failure rate and
+    write coverage are reported for every arm alongside formation;
+    a non-write is missing data, never a zero.
+13. **M3 is always split by evidence visibility.** Evidence-visible
+    faults (explicit_error, empty_partial) vs evidence-invisible
+    (silent_wrong_value, stale_value), because the corrupted
+    observation *is* M3's evidence for the second class. Pilot
+    (Qwen2.5-7B): M3 formation 0.083 visible (1/12) vs 0.750
+    invisible (9/12), against M1's 0.750 / 1.000 — the contract works
+    exactly where evidence can contradict the claim, and largely
+    cannot where it can't. That split, not the pooled 0.333, is the
+    M3 result.
+14. **G6 — Eligibility filter for propagation (MemForm-style).**
+    H2 contrasts are computed on the eligible subset: origins where
+    the no-memory (M0) and clean/oracle (M5) baselines both succeed
+    downstream, so origin-task difficulty (pilot origin success was
+    only 38/60) cannot masquerade as propagation.
+15. **G7 — Populated-store sensitivity arm.** Sunil et al. show
+    pre-existing legitimate memory sharply attenuates poisoning.
+    All pilot chains start from an empty store; before submission,
+    at least one arm re-runs a chain subset with a pre-populated,
+    distractor-bearing store, or the paper carries the empty-store
+    scope limitation explicitly in the abstract.
+16. **Chain is the independent unit.** Pilot CIs are write-level;
+    with 6 chains the effective n for chain-level claims is 6. The
+    main run reports chain-clustered bootstrap intervals, and no
+    per-fault claim is made below n=12 chains per cell.
+17. **Defence positioning (A-MemGuard).** H3's ordering is within
+    the write-time family only; the paper positions M3/M4 against
+    retrieval/action-time consensus defences (A-MemGuard) and
+    reports M4 with its utility + token cost, A-MemGuard-style.
+18. **Provenance gap in H4 — design decision at G2.** H4 invokes
+    provenance/confidence tagging, but no current policy *consumes*
+    provenance downstream (M2 annotates; nothing conditions on it).
+    At the G2 smoke, either add a provenance-conditioned reader
+    variant or narrow H4's wording. The hypothesis may not promise
+    a mechanism the policy set doesn't implement.
+
+## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
 LLM judge, paired-by-chain design, and the falsification branches —
