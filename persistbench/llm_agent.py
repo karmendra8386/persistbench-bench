@@ -191,9 +191,9 @@ class HFTransformersBackend(ChatBackend):
         self.seed = seed
         # Thinking models (Qwen3 family) reason inside <think> blocks by
         # default. In the Week-2 pilot that consumed the whole 256-token
-        # budget before any FACTS block was emitted: 652 parse failures
-        # and empty stores in 89/90 M1-M3 cells, i.e. a measurement
-        # failure, not a model result. Default thinking OFF for those
+        # budget before any FACTS block was emitted (FACTS block in
+        # 0/30 writes; empty stores in 89/90 M1-M3 cells), i.e. a
+        # measurement failure, not a model result. Default thinking OFF for those
         # models (Qwen's own documented non-thinking mode); every other
         # model is left exactly as its template defaults.
         if enable_thinking is None and "qwen3" in model_id.lower():
