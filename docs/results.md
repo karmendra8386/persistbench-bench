@@ -72,8 +72,10 @@ generation**, not evidence that the model avoids false memories:
 
 - Its stored writes are empty in 29/30 M1, 30/30 M2, and 30/30 M3 cells
   (empty object / no claims / provenance only).
-- It logged **652 parse failures across its 180 cells**, vs 61 for
-  Qwen2.5-7B (30 cells affected).
+- Its extraction log totals 652 per-fact entries across its 180 cells
+  (108 entries over its 30 distinct origins, vs 2 for Qwen2.5-7B);
+  the direct diagnostic is in the raw text: an unclosed ``<think>``
+  block in 26-30 of 30 writes per style and a FACTS block in 0/30.
 - Its summary text trails off inside unclosed `<think>` reasoning at
   the 256-token generation cap and never emits a parseable FACTS block.
   The reasoning itself heads toward false values (e.g. a fabricated

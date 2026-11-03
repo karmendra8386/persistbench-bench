@@ -11,7 +11,7 @@ from persistbench.chains import CHAINS
 from persistbench.faults import SILENT_WRONG_VALUE, STALE_VALUE
 from persistbench.memory import M0NoMemory, M1SelfSummary, M5OracleTruth
 from persistbench.runner import correction_event, run_dependent, run_origin
-from persistbench.scorer import classify_write
+from persistbench.scorer import classify_write, grade_origin
 
 NAIVE = NaiveAgent()
 CHAIN_IDS = [c["chain_id"] for c in CHAINS]
@@ -55,6 +55,19 @@ def test_m1_write_of_naive_claim_is_classified_false(chain):
 def test_m5_write_is_never_falsified(chain):
     traj = run_origin(chain, NAIVE, SILENT_WRONG_VALUE, seed=1)
     memory = M5OracleTruth().write(traj, chain, traj.world)
+    assert classify_write(memory, traj, chain) == []
+
+
+def test_classify_write_flags_false_success_flag_in_both_directions():
+    # Audit fix (2026-11-02): a stored task_success=False on a task that
+    # actually succeeded is a false memory, exactly as True-on-failure is.
+    chain = CHAINS[0]
+    traj = run_origin(chain, NAIVE, "no_fault", seed=1)
+    grade = grade_origin(traj, chain)
+    assert grade.task_success is True
+    memory = {"task_success": False}
+    assert classify_write(memory, traj, chain) == ["task_success"]
+    memory = {"task_success": True}
     assert classify_write(memory, traj, chain) == []
 
 

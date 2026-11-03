@@ -34,8 +34,8 @@ stands as frozen on 2026-10-23.
 ## C. Gates before any scale-up run (all must pass)
 
 - **G1 — Qwen3 re-pilot.** The fixed Qwen3 arm re-runs the 6-chain
-  pilot grid. Pass: M1–M3 write coverage ≥80% and parse failures
-  reduced by ≥90% vs the 652 baseline. If it fails, the arm is
+  pilot grid. Pass: M1–M3 write coverage ≥80% AND a FACTS/CLAIM
+  block present in ≥80% of writes (baseline: 0/30). If it fails, the arm is
   replaced (candidate: Qwen2.5-14B-Instruct or Llama-3.1-8B with
   verified write coverage) — not silently dropped.
 - **G2 — Propagation smoke.** Sessions 2–4 (dependents + correction
@@ -118,6 +118,14 @@ LoCoMo, MemoryAgentBench, BEAM, A-MemGuard, MemoryArena, τ-bench).
     At the G2 smoke, either add a provenance-conditioned reader
     variant or narrow H4's wording. The hypothesis may not promise
     a mechanism the policy set doesn't implement.
+
+19. **Symmetric success-flag scoring (audit fix).** Formation
+    scoring flags a stored `task_success` that contradicts the
+    outcome in either direction. Pilot writes were rescored under
+    the corrected classifier (M2 0.700, M3 0.400 on Qwen2.5-7B);
+    corrected numbers supersede originals. The G3 hand-label gate
+    must be re-checked under this definition (the HL-006 edge case
+    flips) before the gate is quoted again.
 
 ## G. What this amendment does NOT change
 

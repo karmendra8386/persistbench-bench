@@ -30,8 +30,12 @@ Qwen2.5-7B-Instruct, the only functioning arm, on 30 shared origins:
 ## What does not hold — the flaws, ranked
 
 1. **Half the experiment never ran.** Qwen3-8B produced empty stores
-   in 89/90 M1–M3 cells (652 parse-log failures): its `<think>`
-   reasoning consumed the 256-token budget before any FACTS block.
+   in 89/90 M1–M3 cells: its `<think>`
+   reasoning consumed the 256-token budget before any FACTS block
+   (FACTS block present in 0/30 writes; unclosed ``<think>`` in
+   26–30/30 per style; 108 extraction-log entries over 30 distinct
+   origins — the often-quoted "652" is that log summed across all
+   six policies and multiply-counts shared origins).
    Its 0.000s are absence of writes, not absence of false memory.
    **Every pooled number (M1 0.350 etc.) averages a real arm with a
    broken one and is withdrawn.** Per-model reporting only, from now.
@@ -55,8 +59,11 @@ Qwen2.5-7B-Instruct, the only functioning arm, on 30 shared origins:
    nothing. On the 27 non-empty rows agreement is still 27/27, but
    zero disagreements in 27 only bounds the disagreement rate at
    ≤11.1% (rule of three), and labelling was single-rater, by the
-   author. The gate needs a stratified non-empty sample, a second
-   rater, and Cohen's kappa (amendment, Gate G3).
+   author. Worse, 13 of the 27 non-empty rows are M4 writes, whose
+   label is 0 by construction — the truly discriminating sample is
+   **14 writes** (10 positive, 4 negative; agreement 14/14). The
+   gate needs a stratified non-empty, non-M4-weighted sample, a
+   second rater, and Cohen's kappa (amendment, Gate G3).
 5. **Coverage and formation were conflated.** A policy that writes
    nothing scores 0 formation. Every formation number must ship with
    its write coverage beside it (now in `pilot_stats.md`). Qwen2.5
@@ -83,6 +90,19 @@ Qwen2.5-7B-Instruct, the only functioning arm, on 30 shared origins:
    from silent tool faults — no attacker — plus their downstream
    propagation/persistence and the priced verified-write fix.**
    Any "first benchmark" phrasing must be scoped to that.
+
+9. **The classifier had a blind spot (found by the independent
+   statistical audit, fixed same day).** `classify_write` only
+   flagged a stored `task_success=True` on a failed task; a stored
+   `False` on a *succeeded* task — a false memory by the paper's own
+   definition — was never counted (12 occurrences in pilot writes).
+   The scorer is now symmetric in both `classify_write` and
+   `grade_origin` (suite 1,168 passed), and the saved pilot writes
+   were rescored offline (`scripts/rescore_pilot.py`): 3 cells
+   change — Qwen2.5 M2 0.667 → **0.700** (now identical to M1,
+   strengthening the M2-null reading) and M3 0.333 → **0.400**
+   (non-empty-only 0.600). M1 and M4 are unchanged. The corrected
+   numbers supersede the originals wherever quoted.
 
 ## What changed because of this audit
 
