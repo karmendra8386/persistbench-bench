@@ -16,7 +16,7 @@
  ],
  "handlabel_sample_size": 50,
  "load_in_4bit": true,
- "max_new_tokens": 256,
+ "max_new_tokens": 1024,
  "max_steps": 8,
  "models": [
   "Qwen/Qwen3-8B"

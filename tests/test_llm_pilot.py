@@ -7,6 +7,7 @@ naive agent's claim for the same (chain, fault), so the expected
 formation outcomes are known by construction.
 """
 import json
+from pathlib import Path
 
 import pytest
 
@@ -14,8 +15,10 @@ from persistbench.agents import NaiveAgent
 from persistbench.chains import CHAINS_BY_ID
 from persistbench.faults import FAULT_CONDITIONS
 from persistbench.llm_agent import (
+    QWEN3_MIN_NEW_TOKENS,
     FakeLLMBackend,
     LLMAgent,
+    effective_max_new_tokens,
     extract_claims,
     parse_action,
     strip_thinking,
@@ -204,6 +207,84 @@ def test_parse_action_ignores_think_block():
     assert error is None and action["tool"] == "charge_payment"
     action, error = parse_action("<think>truncated reasoning")
     assert action is None and error
+
+
+def test_qwen3_token_floor_helper():
+    assert QWEN3_MIN_NEW_TOKENS == 1024
+    assert effective_max_new_tokens("Qwen/Qwen3-8B", 256) == 1024
+    assert effective_max_new_tokens("Qwen/Qwen3-8B", 512) == 1024
+    assert effective_max_new_tokens("Qwen/Qwen3-8B", 2048) == 2048
+    assert effective_max_new_tokens("qwen3-8b", None) == 1024
+    # Qwen2.5 and every other model pass through exactly unchanged.
+    assert effective_max_new_tokens("Qwen/Qwen2.5-7B-Instruct", 256) == 256
+    assert effective_max_new_tokens("Qwen/Qwen2.5-7B-Instruct", 512) == 512
+    assert effective_max_new_tokens("other-model", 256) == 256
+    assert effective_max_new_tokens("other-model", None) is None
+
+
+def test_qwen3_token_floor_reaches_generation_calls():
+    # Write path: Qwen3 gets 1024 where Qwen2.5 keeps the 512 base.
+    trajectory = scripted_run_origin(CHAIN01, NaiveAgent(), "no_fault")
+    qwen3 = LLMAgent(FakeLLMBackend([_facts_text(_naive_claim(CHAIN01, "no_fault"))],
+                                    model_label="Qwen/Qwen3-8B"))
+    qwen3.generate_write(trajectory, CHAIN01, style="plain")
+    assert qwen3.backend.max_new_tokens_seen == [1024]
+    qwen25 = LLMAgent(FakeLLMBackend([_facts_text(_naive_claim(CHAIN01, "no_fault"))],
+                                     model_label="Qwen/Qwen2.5-7B-Instruct"))
+    qwen25.generate_write(trajectory, CHAIN01, style="plain")
+    assert qwen25.backend.max_new_tokens_seen == [512]
+    # Origin path: Qwen3 action calls get 1024, Qwen2.5 keeps 256.
+    qwen3_origin = LLMAgent(FakeLLMBackend(
+        _origin_replies(CHAIN01, "no_fault"), model_label="Qwen/Qwen3-8B"))
+    qwen3_origin.run_origin(CHAIN01, "no_fault")
+    # Two tool actions + done turn + the plain write, all lifted.
+    assert qwen3_origin.backend.max_new_tokens_seen == [1024, 1024, 1024, 1024]
+    qwen25_origin = LLMAgent(FakeLLMBackend(
+        _origin_replies(CHAIN01, "no_fault"), model_label="Qwen/Qwen2.5-7B-Instruct"))
+    qwen25_origin.run_origin(CHAIN01, "no_fault")
+    # Tool actions + done turn at 256, then the plain write at 512.
+    assert qwen25_origin.backend.max_new_tokens_seen == [256, 256, 256, 512]
+
+
+def test_replay_truncated_qwen3_pilot_outputs():
+    """Replay the REAL Week-2 Qwen3 truncations (outputs/pilot_writes.jsonl).
+
+    86/90 Qwen3 M1-M3 writes are unclosed <think> blocks cut off at the
+    256-token cap — reasoning that mentions real fact values (e.g.
+    TRK-000001) but never emits a FACTS block. Correct handling is
+    conservative, not creative: stripping leaves nothing, extraction
+    claims nothing (a value merely reasoned about must never leak into
+    the claim dict as if asserted), every known key is logged unknown,
+    and the action parser rejects the text rather than acting on it.
+    Before this fix's re-pilot these rows scored as empty stores; the
+    re-pilot (thinking disabled + 1024-token floor) must instead
+    produce parseable FACTS blocks for them — see Gate G1.
+    """
+    path = Path(__file__).resolve().parent.parent / "outputs" / "pilot_writes.jsonl"
+    if not path.exists():
+        pytest.skip("pilot outputs not present; replay needs outputs/pilot_writes.jsonl")
+    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    truncated = [
+        row for row in rows
+        if "Qwen3" in row["model"] and row["policy"] in ("M1", "M2", "M3")
+        and (row.get("summary_text") or "").startswith("<think>")
+        and "</think>" not in (row.get("summary_text") or "")
+    ]
+    assert len(truncated) == 86
+    for row in truncated:
+        text = row["summary_text"]
+        assert strip_thinking(text) == ""
+        chain = CHAINS_BY_ID[row["chain_id"]]
+        known_keys = set(chain["intended_facts"]) | {"task_success"}
+        extraction = extract_claims(text, chain)
+        assert extraction.claim == {}
+        assert known_keys <= {entry["fact"] for entry in extraction.parse_log}
+        action, error = parse_action(text)
+        assert action is None and error
+    # At least one replayed truncation reasons about a true value that
+    # must NOT be extracted: the guard above (empty claim) is what
+    # proves no leak, on real model text rather than a synthetic stub.
+    assert any("TRK-000001" in row["summary_text"] for row in truncated)
 
 
 def test_extract_claims_never_reads_think_block():

@@ -112,6 +112,35 @@ def _word_count(text: str) -> int:
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 _THINK_OPEN_RE = re.compile(r"<think>.*$", re.DOTALL)
 
+# Qwen3-only generation floor (tokens). The Week-2 pilot ran Qwen3 at
+# the shared 256-token cap: its <think> reasoning filled the budget and
+# the run was cut off before any FACTS block, so 86/90 M1-M3 writes
+# were unclosed-<think> truncations with empty stores. Two layers fix
+# that, and this floor is the second: thinking is disabled at the chat
+# template for Qwen3 (primary, see HFTransformersBackend), and any
+# generation that still carries reasoning gets 4x the pilot cap to
+# finish in. Greedy decoding stops at EOS, so the floor costs nothing
+# when thinking is off (answers are ~70 words, as for Qwen2.5); it only
+# bites when a run would otherwise truncate. Qwen2.5 and every other
+# model are untouched — the floor applies only to model labels
+# containing "qwen3".
+QWEN3_MIN_NEW_TOKENS = 1024
+
+
+def effective_max_new_tokens(model_label: str, requested: int | None) -> int | None:
+    """Apply the Qwen3 token floor to a requested generation budget.
+
+    Qwen3 labels get ``max(requested, QWEN3_MIN_NEW_TOKENS)``; every
+    other label passes through unchanged, and ``None`` stays ``None``
+    (caller default) for non-Qwen3 models. For Qwen3 with no requested
+    budget, the floor itself is the budget.
+    """
+    if "qwen3" in (model_label or "").lower():
+        if requested is None:
+            return QWEN3_MIN_NEW_TOKENS
+        return max(requested, QWEN3_MIN_NEW_TOKENS)
+    return requested
+
 
 def strip_thinking(text: str) -> str:
     """Remove reasoning-model ``<think>`` blocks from model output.
@@ -148,9 +177,13 @@ class FakeLLMBackend(ChatBackend):
         self._queue = list(responses) if isinstance(responses, (list, tuple)) else None
         self.model_label = model_label
         self.calls = 0
+        # Budget actually requested per call, in order — lets tests
+        # assert the token floor reaches the generation call.
+        self.max_new_tokens_seen = []
 
     def generate(self, messages, max_new_tokens=None, seed=None) -> Generation:
         self.calls += 1
+        self.max_new_tokens_seen.append(max_new_tokens)
         if self._queue is not None:
             if not self._queue:
                 raise RuntimeError("FakeLLMBackend ran out of scripted responses")
@@ -187,7 +220,10 @@ class HFTransformersBackend(ChatBackend):
             ) from exc
         self.model_id = model_id
         self.model_label = model_id
-        self.max_new_tokens = max_new_tokens
+        # Qwen3 floor (see effective_max_new_tokens): a factory that
+        # passes the shared 256-token pilot cap still gets 1024 for
+        # Qwen3; Qwen2.5 keeps exactly what it was given.
+        self.max_new_tokens = effective_max_new_tokens(model_id, max_new_tokens)
         self.seed = seed
         # Thinking models (Qwen3 family) reason inside <think> blocks by
         # default. In the Week-2 pilot that consumed the whole 256-token
@@ -220,7 +256,11 @@ class HFTransformersBackend(ChatBackend):
         torch = self._torch
         if seed is not None:
             torch.manual_seed(seed)
-        budget = max_new_tokens or self.max_new_tokens
+        # Defence in depth: even a direct caller passing 256 gets the
+        # Qwen3 floor; non-Qwen3 callers are unaffected.
+        budget = effective_max_new_tokens(
+            self.model_label, max_new_tokens or self.max_new_tokens
+        )
         tokenizer = self.tokenizer
         if getattr(tokenizer, "chat_template", None):
             if self.enable_thinking is not None:
@@ -454,10 +494,19 @@ class LLMAgent:
         usage = {"prompt_tokens": 0, "completion_tokens": 0}
         invalid_actions = 0
         fault_applied = False
+        # Action budget: the backend's own default (256 in the pilot
+        # config), lifted to the Qwen3 floor for Qwen3 only. Fake
+        # backends carry no default, so fall back to the same 256.
+        action_budget = effective_max_new_tokens(
+            self.backend.model_label,
+            getattr(self.backend, "max_new_tokens", 256),
+        )
         for _turn in range(self.max_steps + 4):  # slack for invalid replies
             if len(steps) >= self.max_steps:
                 break
-            generation = self.backend.generate(messages, seed=seed)
+            generation = self.backend.generate(
+                messages, max_new_tokens=action_budget, seed=seed
+            )
             usage["prompt_tokens"] += generation.prompt_tokens
             usage["completion_tokens"] += generation.completion_tokens
             transcript.append({"role": "assistant", "content": generation.text})
@@ -567,7 +616,12 @@ class LLMAgent:
         # plus a 5-line FACTS block does not fit reliably in the 256-token
         # action budget (Qwen2.5-7B hit that cap in 79/90 M1-M3 writes in
         # the Week-2 pilot). Actions stay at the backend default.
-        generation = self.backend.generate(messages, max_new_tokens=512,
+        # Qwen3 writes get the 1024-token floor on top of the 512 base:
+        # with thinking disabled that headroom is unused, but if any
+        # reasoning leaks past the template switch the FACTS block
+        # still has room to be emitted instead of truncating mid-think.
+        write_budget = effective_max_new_tokens(self.backend.model_label, 512)
+        generation = self.backend.generate(messages, max_new_tokens=write_budget,
                                            seed=seed)
         extraction = extract_claims(generation.text, chain)
         return WriteGeneration(
