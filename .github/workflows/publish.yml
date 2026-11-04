@@ -1,0 +1,34 @@
+name: Publish to PyPI
+
+# Trusted publishing (OIDC, no stored API token) — same pattern as the
+# agent-cost-mcp-server repo's publish.yml, plus release/tag triggers so
+# publishing follows the v0.1.0 GitHub release.
+# Requires a pending trusted publisher on PyPI for project
+# `persistaibench` pointing at this repo, this workflow file, and
+# environment `pypi` (see PyPI publishing settings).
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build package
+        run: |
+          pip install build
+          python -m build
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
