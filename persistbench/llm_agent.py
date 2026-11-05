@@ -631,3 +631,320 @@ class LLMAgent:
             prompt_tokens=generation.prompt_tokens,
             completion_tokens=generation.completion_tokens,
         )
+
+
+# ---------------------------------------------------------------------------
+# The LLM dependent agent (Gate G2)
+# ---------------------------------------------------------------------------
+
+# Read tools only. A dependent may look a fact up when the memory does
+# not record it (M0, or a partial store) — exactly the fallback the
+# scripted DependentAgent performs by reading ground truth directly.
+# Write tools are never offered: a dependent that could re-charge or
+# re-ship would mutate the world the scorer reads.
+DEPENDENT_READ_TOOLS = {"get_order", "get_product", "get_shipment"}
+
+DEPENDENT_SYSTEM_PROMPT = (
+    "You are an operations agent working in a retail order system. You "
+    "are answering a follow-up question about an earlier session.\n"
+    "Reply with ONLY one JSON object per turn, no other text:\n"
+    '{"answer": <the value>} to answer, or '
+    '{"tool": "<read tool>", "args": {...}} to look a fact up, when the '
+    "stored memory does not record it.\n"
+    "Answer from the stored memory when it records the fact. Never "
+    "guess a value that is not in the memory or in a tool result you "
+    "actually received."
+)
+
+
+def _coerce_answer_value(raw, exemplar):
+    """Coerce a JSON answer value against the fact's intended type.
+
+    Strings go through the same conservative parser as claim
+    extraction; already-typed JSON values must match the exemplar's
+    type exactly (a bool is never an int). Raises ValueError on a
+    mismatch — the caller records it, never a guessed value.
+    """
+    if isinstance(raw, str):
+        return _parse_value(raw, exemplar)
+    if isinstance(exemplar, bool) and isinstance(raw, bool):
+        return raw
+    if isinstance(exemplar, int) and isinstance(raw, int) \
+            and not isinstance(raw, bool):
+        return raw
+    if isinstance(exemplar, str) and isinstance(raw, str):
+        return raw
+    raise ValueError(
+        f"answer {raw!r} does not match expected type "
+        f"{type(exemplar).__name__}"
+    )
+
+
+def parse_dependent_reply(text: str, exemplar):
+    """Parse one dependent reply. Returns (reply, error).
+
+    ``reply`` is ``{"answer": value}`` (value may be ``None`` for a
+    JSON null — an abstention, not a parse failure) or a validated
+    tool action ``{"tool": ..., "args": ...}``. Anything else — prose,
+    malformed JSON, ``{"done": true}`` with no answer, an unparseable
+    answer value — is an error string; the caller feeds it back as an
+    observation and the world is never touched.
+    """
+    if not text or not text.strip():
+        return None, "empty reply"
+    candidate = strip_thinking(text).strip()
+    if not candidate:
+        return None, "empty reply after stripping reasoning"
+    if candidate.startswith("```"):
+        candidate = candidate.strip("`")
+        if candidate.lower().startswith("json"):
+            candidate = candidate[4:].strip()
+    decoder = json.JSONDecoder()
+    obj = None
+    for match in re.finditer(r"\{", candidate):
+        try:
+            parsed, _ = decoder.raw_decode(candidate[match.start():])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            obj = parsed
+            break
+    if obj is None:
+        return None, "no JSON object found in reply"
+    if "answer" in obj:
+        raw = obj["answer"]
+        if raw is None:
+            return {"answer": None}, None
+        try:
+            value = _coerce_answer_value(raw, exemplar)
+        except (ValueError, TypeError) as exc:
+            return None, f"unparseable answer {raw!r}: {exc}"
+        return {"answer": value}, None
+    if obj.get("done") is True:
+        return None, "done without an answer"
+    # A tool call: reuse the action validator (tool/args/type checks).
+    return parse_action(text)
+
+
+class LLMDependentAgent:
+    """Plays one dependent task (Sessions 2-4) with a chat model.
+
+    The model reads ONLY the policy-written memory (rendered into the
+    prompt) — never the world DB. When the memory does not record the
+    fact it needs (M0, or a partial store), it may call a read tool;
+    when the memory records the fact, no tools are offered and the
+    model answers from memory. Annotation keys (``_provenance``,
+    ``_claims``, ...) are never rendered into the prompt: the reader
+    does not condition on provenance (see the H4 decision in
+    docs/g2-propagation-smoke-design.md).
+
+    The session-4 correction is delivered as a verified observation
+    that overrides the stored memory — for a ``revising`` agent. A
+    ``stubborn`` agent is never shown the correction, so it keeps the
+    memory belief, matching the scripted stubborn semantics; a live
+    model cannot be instructed to ignore text it has already seen.
+
+    One generation per task: :meth:`run` resolves the believed value
+    and builds the outcome (including ``"believed"``) in a single
+    pass, so ``runner.run_dependent`` does not generate twice. An
+    unparseable reply or an abstention (JSON null) yields
+    ``believed=None``, which the programmatic scorer grades
+    incorrect — a missing answer is missing data, never a guess.
+    """
+
+    is_live_dependent = True
+
+    def __init__(self, backend: ChatBackend, memory: dict | None,
+                 mode: str = "revising", max_tool_calls: int = 3,
+                 seed: int = 0):
+        if mode not in ("revising", "stubborn"):
+            raise ValueError(f"unknown dependent-agent mode {mode!r}")
+        self.backend = backend
+        self.memory = memory
+        self.mode = mode
+        self.max_tool_calls = max_tool_calls
+        self.seed = seed
+        self.name = f"llm-dependent:{backend.model_label}"
+        self._last_believed = None
+
+    def belief(self, chain: dict, world, fact: str, correction: dict | None):
+        """Believed value from the most recent :meth:`run`, else None.
+
+        Unlike the scripted agent, belief is not free: it costs a
+        generation, so :meth:`run` resolves it once and this returns
+        the cached value. Callers that need a fresh resolution use
+        :meth:`run`.
+        """
+        return self._last_believed
+
+    def _user_message(self, chain: dict, spec: dict,
+                      correction: dict | None) -> str:
+        fact = spec["fact"]
+        context = []
+        if chain.get("order"):
+            context.append(f"Order id: {chain['order']}.")
+        if chain.get("product"):
+            context.append(f"Product sku: {chain['product']}.")
+        if spec["kind"] == "report":
+            task = f"Report the value of {fact}."
+        elif spec["kind"] == "decision":
+            task = (
+                f"Report the value of {fact}. "
+                f"(A later step compares it against {spec['threshold']}.)"
+            )
+        elif spec["kind"] == "action":
+            task = (
+                "A return label must be created for the shipment with "
+                f"this tracking number. Report the value of {fact}."
+            )
+        else:
+            raise ValueError(f"unknown dependent kind {spec['kind']!r}")
+        parts = [" ".join(context), task] if context else [task]
+        memory = self.memory
+        if memory is None:
+            parts.append(
+                "Stored memory: none exists for this task. Use a read tool "
+                "(get_order, get_product, or get_shipment) to look the "
+                "fact up."
+            )
+        else:
+            rendered = "\n".join(
+                f"{key}: {value}" for key, value in memory.items()
+                if not key.startswith("_")
+            )
+            parts.append(
+                "Stored memory from the earlier session:\n"
+                + (rendered or "(empty — no facts were recorded)")
+            )
+            if fact in memory:
+                parts.append("Answer from the stored memory above.")
+            else:
+                parts.append(
+                    f"The stored memory does not record {fact}. Use a read "
+                    "tool (get_order, get_product, or get_shipment) to look "
+                    "it up."
+                )
+        if correction is not None and fact in correction:
+            parts.append(
+                "Verified observation delivered before this session — it "
+                f"overrides the stored memory for {fact}: "
+                f"{fact}: {correction[fact]}."
+            )
+        return "\n".join(parts)
+
+    def run(self, chain: dict, world, spec: dict,
+            correction: dict | None = None) -> dict:
+        fact = spec["fact"]
+        exemplar = chain["intended_facts"].get(fact, "")
+        # Mirror DependentAgent.run: the correction applies only to the
+        # Session-4 task, and only a revising agent is shown it.
+        effective_correction = (
+            correction
+            if spec["session"] == 4 and self.mode == "revising"
+            else None
+        )
+        memory_has_fact = self.memory is not None and fact in self.memory
+        tools_available = not memory_has_fact
+        messages = [
+            {"role": "system", "content": DEPENDENT_SYSTEM_PROMPT},
+            {"role": "user", "content": self._user_message(
+                chain, spec, effective_correction)},
+        ]
+        transcript = []
+        parse_log = []
+        usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        invalid_replies = 0
+        believed = None
+        tool_calls = 0
+        # Short answers: the action budget (256), lifted to the Qwen3
+        # floor for Qwen3 only — same rule as the origin agent.
+        budget = effective_max_new_tokens(self.backend.model_label, 256)
+        for _turn in range(self.max_tool_calls + 2):  # slack for invalid replies
+            generation = self.backend.generate(
+                messages, max_new_tokens=budget, seed=self.seed
+            )
+            usage["prompt_tokens"] += generation.prompt_tokens
+            usage["completion_tokens"] += generation.completion_tokens
+            messages.append({"role": "assistant", "content": generation.text})
+            transcript.append({"role": "assistant", "content": generation.text})
+            reply, error = parse_dependent_reply(generation.text, exemplar)
+            if error is not None:
+                invalid_replies += 1
+                parse_log.append({
+                    "reply": generation.text, "status": "unknown",
+                    "reason": error,
+                })
+                feedback = {"error": f"invalid reply: {error}. "
+                                     "Reply with one JSON object only."}
+                messages.append({"role": "user",
+                                 "content": f"Observation: {json.dumps(feedback)}"})
+                transcript.append({"role": "observation", "content": feedback})
+                continue
+            if "answer" in reply:
+                believed = reply["answer"]
+                if believed is None:
+                    parse_log.append({
+                        "reply": generation.text, "status": "unknown",
+                        "reason": "model abstained (null answer)",
+                    })
+                break
+            tool, kwargs = reply["tool"], reply["args"]
+            if not tools_available or tool not in DEPENDENT_READ_TOOLS:
+                invalid_replies += 1
+                parse_log.append({
+                    "reply": generation.text, "status": "unknown",
+                    "reason": f"tool {tool!r} not available to this dependent",
+                })
+                feedback = {"error": f"tool {tool!r} is not available here. "
+                                     "Reply with one JSON object only."}
+                messages.append({"role": "user",
+                                 "content": f"Observation: {json.dumps(feedback)}"})
+                transcript.append({"role": "observation", "content": feedback})
+                continue
+            if tool_calls >= self.max_tool_calls:
+                invalid_replies += 1
+                parse_log.append({
+                    "reply": generation.text, "status": "unknown",
+                    "reason": "tool-call budget exhausted; answer required",
+                })
+                feedback = {"error": "no more tool calls; answer with the "
+                                     "value now."}
+                messages.append({"role": "user",
+                                 "content": f"Observation: {json.dumps(feedback)}"})
+                transcript.append({"role": "observation", "content": feedback})
+                continue
+            response = getattr(world, tool)(**kwargs)
+            tool_calls += 1
+            messages.append({"role": "user",
+                             "content": f"Observation from {tool}: {json.dumps(response)}"})
+            transcript.append({"role": "observation", "content": response})
+        else:
+            parse_log.append({
+                "status": "unknown",
+                "reason": "no answer within turn budget",
+            })
+        self._last_believed = believed
+        outcome = {"believed": believed}
+        if spec["kind"] == "report":
+            outcome["answer"] = believed
+        elif spec["kind"] == "decision":
+            outcome["answer"] = (
+                believed >= spec["threshold"] if believed is not None else None
+            )
+        elif spec["kind"] == "action":
+            if believed is None:
+                outcome["answer"] = {"error": "no believed value parsed"}
+                outcome["acted_value"] = None
+            else:
+                action_world = world.clone()
+                result = getattr(action_world, spec["tool"])(
+                    **{spec["arg"]: believed})
+                outcome["answer"] = result
+                outcome["acted_value"] = believed
+        else:
+            raise ValueError(f"unknown dependent kind {spec['kind']!r}")
+        outcome["transcript"] = transcript
+        outcome["invalid_replies"] = invalid_replies
+        outcome["parse_log"] = parse_log
+        outcome["usage"] = usage
+        return outcome

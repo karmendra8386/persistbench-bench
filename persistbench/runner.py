@@ -51,7 +51,8 @@ def run_origin(chain: dict, agent, fault_condition: str, seed: int = 0) -> Traje
 
 
 def run_chain(chain: dict, origin_agent, fault_condition: str, policy,
-              seed: int = 0, dependent_mode: str = "revising") -> dict:
+              seed: int = 0, dependent_mode: str = "revising",
+              dependent_agent: str = "scripted", dependent_backend=None) -> dict:
     """Execute one full chain under one memory policy x one fault condition.
 
     Session 1 runs under the fault; the policy writes memory from the
@@ -62,18 +63,37 @@ def run_chain(chain: dict, origin_agent, fault_condition: str, policy,
     memory and its false-memory classification, and the graded dependent
     outcomes (from which Propagation, Persistence and Correction
     Resistance are computed).
+
+    ``dependent_agent`` selects who plays Sessions 2-4: ``"scripted"``
+    (default, the scripted DependentAgent — all existing behaviour
+    unchanged) or ``"live"`` (Gate G2: LLMDependentAgent on
+    ``dependent_backend``, a ChatBackend; raises if no backend is
+    given). The dependent agent is built once per chain run; the
+    memory is fixed for the run, so this is identical to building it
+    per spec for the scripted agent.
     """
     from .agents import DependentAgent  # local import to avoid a cycle
+
+    if dependent_agent not in ("scripted", "live"):
+        raise ValueError(f"unknown dependent_agent {dependent_agent!r}")
+    if dependent_agent == "live" and dependent_backend is None:
+        raise ValueError("dependent_agent='live' needs a dependent_backend")
 
     trajectory = run_origin(chain, origin_agent, fault_condition, seed=seed)
     memory = policy.write(trajectory, chain, trajectory.world)
     correction = correction_event(chain, trajectory.world)
+    if dependent_agent == "live":
+        from .llm_agent import LLMDependentAgent  # local import to avoid a cycle
+
+        agent = LLMDependentAgent(
+            dependent_backend, memory, mode=dependent_mode, seed=seed
+        )
+    else:
+        agent = DependentAgent(memory, mode=dependent_mode)
     dependents = []
     for spec in chain["dependents"]:
         outcome, grade = run_dependent(
-            chain, trajectory.world,
-            DependentAgent(memory, mode=dependent_mode), spec,
-            correction=correction,
+            chain, trajectory.world, agent, spec, correction=correction,
         )
         dependents.append({"spec": spec, "outcome": outcome, "grade": grade})
     return {
@@ -100,10 +120,20 @@ def run_dependent(chain: dict, world, agent, spec: dict, correction: dict | None
     """Run and grade one dependent task. Returns (outcome, DependentGrade).
 
     The outcome is annotated with the agent's believed fact value so the
-    scorer can grade decisions as well as reports and actions.
+    scorer can grade decisions as well as reports and actions. A live
+    LLM dependent resolves its believed value inside run() (one
+    generation per task, and run() returns it as ``"believed"``); the
+    scripted agent's belief() is free, so it is resolved first and
+    annotated onto the outcome. Scorer semantics are unchanged either
+    way.
     """
     from .agents import DependentAgent  # local import to avoid a cycle
 
+    if getattr(agent, "is_live_dependent", False):
+        outcome = agent.run(chain, world, spec, correction=correction)
+        if "believed" not in outcome:
+            raise ValueError("live dependent run() must return a 'believed' value")
+        return outcome, grade_dependent(chain, world, spec, outcome)
     assert isinstance(agent, DependentAgent)
     believed = agent.belief(chain, world, spec["fact"],
                             correction if spec["session"] == 4 else None)
