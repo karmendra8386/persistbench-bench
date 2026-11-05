@@ -1,0 +1,27 @@
+{
+ "chains": [
+  "chain01_pay_ship_laptop",
+  "chain05_restock_lamp"
+ ],
+ "dependent_mode": "revising",
+ "fault_conditions": [
+  "silent_wrong_value",
+  "stale_value"
+ ],
+ "load_in_4bit": true,
+ "max_new_tokens": 256,
+ "models": [
+  "Qwen/Qwen2.5-7B-Instruct",
+  "Qwen/Qwen3-8B"
+ ],
+ "policies": [
+  "M0",
+  "M1",
+  "M5"
+ ],
+ "seed": 0,
+ "writes": {
+  "Qwen/Qwen2.5-7B-Instruct": "outputs/pilot_writes.jsonl",
+  "Qwen/Qwen3-8B": "results/qwen3-repilot/pilot_writes.jsonl"
+ }
+}

@@ -925,6 +925,10 @@ class LLMDependentAgent:
             })
         self._last_believed = believed
         outcome = {"believed": believed}
+        # The prompt is part of the audit record: the G2 smoke verifies
+        # the Session-4 correction was actually delivered by checking
+        # for it here, rather than trusting the call path.
+        outcome["prompt"] = messages[1]["content"]
         if spec["kind"] == "report":
             outcome["answer"] = believed
         elif spec["kind"] == "decision":

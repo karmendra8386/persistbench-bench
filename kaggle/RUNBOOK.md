@@ -1,6 +1,103 @@
 # PersistBench — Kaggle Runbook
 
-## Qwen3 re-pilot — Gate G1 (CURRENT, Nov 4, 2026)
+## Gate G2 propagation smoke (CURRENT, Nov 5, 2026)
+
+G1 was ACCEPTED Nov 5 with the coverage caveat (77.8%); the formation
+arm of the two-model scale-up is cleared, but the paper's headline
+(H2: corrupted M1 memory is worse than no memory downstream) still
+depends on this gate. The smoke proves H2/H4 are measurable before
+the full grid spends GPU (design: `docs/g2-propagation-smoke-design.md`).
+
+**What it runs:** `scripts/g2_smoke.py` with `configs/g2_smoke.json`
+(notebook `kaggle/g2-smoke.ipynb`) — Qwen2.5-7B-Instruct + Qwen3-8B
+(the two G1-cleared arms) x 2 chains (chain01 tracking, chain05
+stock) x 2 faults (silent_wrong_value, stale_value) x 3 policies
+(M0/M1/M5), dependent mode revising, seed 0 = **24 chain runs, 72
+dependent outcomes**. **Reuse, don't regenerate:** the 24 origin
+trajectories + stored writes already exist in the pilot outputs
+(`outputs/pilot_writes.jsonl` for Qwen2.5; `results/qwen3-repilot/
+pilot_writes.jsonl` for Qwen3 — both tracked, so the clone has them);
+the smoke generates only the 72 dependent answers live — minutes on
+a T4, not a second pilot.
+
+**World-repair note (verified locally Nov 5):** the pilot writes
+record DB truth but not the origin tool steps, so each cell's world
+is a plan replay repaired to the recorded truth. 18/24 cells replay
+exactly; the 6 Qwen2.5 chain05 cells repair stock 40 -> 76
+(silent_wrong_value) / 80 (stale_value) — the Nov 2 origin, shown a
+corrupted restock response, issued a second restock that genuinely
+changed the DB. The repair is recorded per cell in the outputs; it
+is expected, not an error.
+
+### Exact launch steps (parent agent, in a browser — do NOT fake this)
+
+1. **Commit + push this prep first** — the notebook clones the repo
+   at its default branch, which must contain `scripts/g2_smoke.py`,
+   `configs/g2_smoke.json`, `persistbench/g2_smoke.py`, and the two
+   pilot writes files. The notebook's step-2 cell hard-fails if any
+   is missing.
+2. Read the current GPU quota first; report it. Free tier only
+   (Settings → Quotas; 30 h/week free tier, T4 x2). The smoke queues
+   after any running Kaggle work; it is short (minutes), so it can
+   follow a queued run the same day. **Quota could not be checked
+   from local state on Nov 5 — no quota file exists in the
+   workspace/repo; the browser check at launch is the only source.**
+3. Import `kaggle/g2-smoke.ipynb` from the repo at the commit
+   reported with this run.
+4. Set **Accelerator = GPU T4 x2** and **Internet = ON** *before*
+   committing — a version launched with Accelerator=None fails by
+   design at the GPU-check cell.
+5. **Save Version → Save & Run All (Commit)** as a new version, then
+   confirm the version is actually **Running/Queued** (a click is not
+   proof).
+6. Cancel any duplicate version that auto-started on import, so quota
+   is not double-spent.
+7. Set a retrieval check for ~1 h after launch (the smoke takes
+   minutes; outputs persist in the version Output even if the
+   session is killed).
+
+### Expected grid and outputs
+
+- **Grid: 24 chain runs** (2 models x 2 chains x 2 faults x 3
+  policies), **72 dependent outcomes**, seed 0, revising dependents.
+- Outputs (version Output / `/kaggle/working/g2-smoke`):
+  `g2_smoke_summary.md` (gate verdict + reported rates),
+  `g2_smoke_summary.json`, `g2_smoke_cells.csv`,
+  `g2_smoke_cells.jsonl`, `transcripts/` (one JSON per dependent
+  outcome: prompt, transcript, parse log, usage). On a reuse
+  failure the directory instead holds `fallback_pilot_config.json`.
+
+### G2 pass criteria (measurability smoke, not an effect gate)
+
+- **Answer yield ≥ 80%** over the 72 dependent outcomes.
+- **M0 floor holds** (every live M0 dependent correct) and **M5
+  ceiling holds** (every live M5 dependent correct).
+- **No cell errors**, and the correction is verified present in the
+  prompt of every Session-4 cell.
+- **Propagation contrast computable** (≥ 1 G6-eligible session per
+  model x chain x fault).
+- A clean null — M1 downstream ≈ M0 downstream with floor and
+  ceiling holding — is a **reportable smoke outcome, not a FAIL**.
+  The script exits 0 on PASS, 1 on FAIL, 2 on reuse failure.
+
+### After retrieval
+
+1. Copy the output directory into the repo as `results/g2-smoke/`
+   and commit it.
+2. Write the G2 verdict record (`docs/g2-smoke-results.md`) from the
+   summary + an amendment §I entry recording the verdict and the H4
+   narrowing (live dependent does not condition on provenance; M2
+   not in the smoke set).
+3. File the verdict record to Drive §03 + update the EB1 tracker in
+   the same pass.
+4. Only on G2 PASS: proceed toward the two-model scale-up under
+   gates G3–G7. No scale-up spend beyond the smoke until G2 passes.
+5. On exit 2 (reuse failure): retrieve `fallback_pilot_config.json`
+   and regenerate the 24 origins + writes with
+   `scripts/run_pilot.py` on that config first; do NOT re-run the
+   smoke blindly.
+
+## Qwen3 re-pilot — Gate G1 (Nov 4, 2026)
 
 The Nov 2 pilot's Qwen3-8B arm was a measurement failure, not a model
 result: its `<think>` reasoning filled the shared 256-token cap and was
