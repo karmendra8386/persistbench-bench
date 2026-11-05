@@ -127,6 +127,36 @@ LoCoMo, MemoryAgentBench, BEAM, A-MemGuard, MemoryArena, τ-bench).
     must be re-checked under this definition (the HL-006 edge case
     flips) before the gate is quoted again.
 
+## H. Gate G1 ruling — ACCEPTED with caveat (2026-11-05)
+
+Decided by the agent under Karmendra's explicit delegation
+("What do you think is best?" / "Do what you think is best.",
+Nov 5, 2026). **G1 is accepted at 77.8% write coverage (70/90)
+with the coverage caveat stated wherever formation is quoted.**
+Rationale, recorded so the decision is auditable:
+
+1. The bar was missed by 2 cells, and the miss is concentrated
+   and explained: 11 of the 20 no-write cells are `empty_partial`
+   (the model abstains when the tool returned nothing), 9 are M2.
+   That is a finding about abstention, not random failure.
+2. The gate's actual question — is the arm broken? — is answered
+   no: 0 unclosed `<think>` blocks in 180 writes, parse failures
+   comparable to Qwen2.5-7B (77 vs 55), hand-label gate 50/50.
+   The Nov 2 failure mode is fixed.
+3. A targeted re-pilot of the same 20 cells would reproduce the
+   same result: generation is greedy and deterministic at seed 0.
+   Re-running without a protocol change would burn GPU for
+   nothing. Any future re-pilot must change the write protocol
+   (e.g. a one-shot write retry for empty extractions) and be
+   recorded as a new amendment, not a G1 repeat.
+4. The amendment already requires coverage beside every rate
+   (§F.12), so the caveat is structural in the reporting, not a
+   footnote to be lost.
+
+Consequence: the two-model (Qwen2.5-7B + Qwen3-8B) scale-up is
+cleared *for the formation arm*; the paper's headline still
+depends on G2 (propagation smoke) and the remaining gates.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no

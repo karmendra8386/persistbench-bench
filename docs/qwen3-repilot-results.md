@@ -24,10 +24,15 @@ in **empty_partial (11/20)** — where the tool returns nothing, Qwen3
 often writes nothing at all — and in M2 (9/20). That is a finding
 in itself (abstention under empty results), not just a coverage miss.
 
-**Ruling still his:** accept the arm with the coverage caveat
-(reported as 77.8% coverage, formation conditional on writes), or
-run a targeted re-pilot of the 20 no-write cells. Week-3 two-model
-scale-up is NOT cleanly clear until he rules.
+**Ruling (Nov 5, 2026 — agent's decision under his explicit
+delegation): ACCEPTED with the coverage caveat.** Formation is
+reported conditional on writes, with 77.8% coverage stated beside
+every rate. A targeted re-pilot was rejected: greedy decoding at
+seed 0 would reproduce the same 20 no-writes, so re-running them
+without a protocol change burns GPU for nothing; any future
+re-pilot must change the write protocol and be a new amendment.
+Week-3 two-model scale-up is cleared for the formation arm; the
+paper's headline still depends on G2 (propagation smoke).
 
 ## Formation (Qwen3-8B, corrected symmetric classifier)
 
