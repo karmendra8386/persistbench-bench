@@ -1,0 +1,29 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M0",
+  "session": 4,
+  "kind": "report",
+  "fact": "tracking",
+  "stored_write": null,
+  "truth": "TRK-000001",
+  "believed": "TRK-000001",
+  "correct": true,
+  "correction": {
+    "tracking": "TRK-000001"
+  },
+  "prompt": "Order id: O1001.\nReport the value of tracking.\nStored memory: none exists for this task. Use a read tool (get_order, get_product, or get_shipment) to look the fact up.\nVerified observation delivered before this session \u2014 it overrides the stored memory for tracking: tracking: TRK-000001.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": \"TRK-000001\"}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 191,
+    "completion_tokens": 141
+  }
+}

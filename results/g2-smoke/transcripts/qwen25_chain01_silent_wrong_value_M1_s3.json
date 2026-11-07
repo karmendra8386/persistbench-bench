@@ -1,0 +1,33 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M1",
+  "session": 3,
+  "kind": "action",
+  "fact": "tracking",
+  "stored_write": {
+    "order_status": "shipped",
+    "payment_status": "captured",
+    "charged_cents": 150000,
+    "tracking": "TRK-999999",
+    "task_success": false
+  },
+  "truth": "TRK-000001",
+  "believed": "TRK-999999",
+  "correct": false,
+  "correction": null,
+  "prompt": "Order id: O1001.\nA return label must be created for the shipment with this tracking number. Report the value of tracking.\nStored memory from the earlier session:\norder_status: shipped\npayment_status: captured\ncharged_cents: 150000\ntracking: TRK-999999\ntask_success: False\nAnswer from the stored memory above.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": \"TRK-999999\"}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 200,
+    "completion_tokens": 15
+  }
+}

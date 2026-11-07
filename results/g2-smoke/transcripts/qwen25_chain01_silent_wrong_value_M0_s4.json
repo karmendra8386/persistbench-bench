@@ -1,0 +1,105 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M0",
+  "session": 4,
+  "kind": "report",
+  "fact": "tracking",
+  "stored_write": null,
+  "truth": "TRK-000001",
+  "believed": null,
+  "correct": false,
+  "correction": {
+    "tracking": "TRK-000001"
+  },
+  "prompt": "Order id: O1001.\nReport the value of tracking.\nStored memory: none exists for this task. Use a read tool (get_order, get_product, or get_shipment) to look the fact up.\nVerified observation delivered before this session \u2014 it overrides the stored memory for tracking: tracking: TRK-000001.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "error": "invalid reply: get_shipment takes args ['tracking'], got ['order_id']. Reply with one JSON object only."
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_order\", \"args\": {\"id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "error": "invalid reply: get_order takes args ['order_id'], got ['id']. Reply with one JSON object only."
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "error": "invalid reply: get_shipment takes args ['tracking'], got ['order_id']. Reply with one JSON object only."
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_product\", \"args\": {\"order_id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "error": "invalid reply: get_product takes args ['sku'], got ['order_id']. Reply with one JSON object only."
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "error": "invalid reply: get_shipment takes args ['tracking'], got ['order_id']. Reply with one JSON object only."
+      }
+    }
+  ],
+  "parse_log": [
+    {
+      "reply": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}",
+      "status": "unknown",
+      "reason": "get_shipment takes args ['tracking'], got ['order_id']"
+    },
+    {
+      "reply": "{\"tool\": \"get_order\", \"args\": {\"id\": \"O1001\"}}",
+      "status": "unknown",
+      "reason": "get_order takes args ['order_id'], got ['id']"
+    },
+    {
+      "reply": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}",
+      "status": "unknown",
+      "reason": "get_shipment takes args ['tracking'], got ['order_id']"
+    },
+    {
+      "reply": "{\"tool\": \"get_product\", \"args\": {\"order_id\": \"O1001\"}}",
+      "status": "unknown",
+      "reason": "get_product takes args ['sku'], got ['order_id']"
+    },
+    {
+      "reply": "{\"tool\": \"get_shipment\", \"args\": {\"order_id\": \"O1001\"}}",
+      "status": "unknown",
+      "reason": "get_shipment takes args ['tracking'], got ['order_id']"
+    },
+    {
+      "status": "unknown",
+      "reason": "no answer within turn budget"
+    }
+  ],
+  "invalid_replies": 5,
+  "usage": {
+    "prompt_tokens": 1574,
+    "completion_tokens": 112
+  }
+}

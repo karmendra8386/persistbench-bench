@@ -1,0 +1,32 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "chain_id": "chain05_restock_lamp",
+  "fault_condition": "stale_value",
+  "policy": "M5",
+  "session": 4,
+  "kind": "report",
+  "fact": "stock",
+  "stored_write": {
+    "stock": 80,
+    "task_success": false
+  },
+  "truth": 80,
+  "believed": 80,
+  "correct": true,
+  "correction": {
+    "stock": 80
+  },
+  "prompt": "Product sku: SKU-LAMP.\nReport the value of stock.\nStored memory from the earlier session:\nstock: 80\ntask_success: False\nAnswer from the stored memory above.\nVerified observation delivered before this session \u2014 it overrides the stored memory for stock: stock: 80.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": 80}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 177,
+    "completion_tokens": 8
+  }
+}

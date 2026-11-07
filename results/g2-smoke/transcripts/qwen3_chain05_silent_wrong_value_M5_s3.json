@@ -1,0 +1,30 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "chain_id": "chain05_restock_lamp",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M5",
+  "session": 3,
+  "kind": "decision",
+  "fact": "stock",
+  "stored_write": {
+    "stock": 40,
+    "task_success": true
+  },
+  "truth": 40,
+  "believed": 40,
+  "correct": true,
+  "correction": null,
+  "prompt": "Product sku: SKU-LAMP.\nReport the value of stock. (A later step compares it against 25.)\nStored memory from the earlier session:\nstock: 40\ntask_success: True\nAnswer from the stored memory above.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": 40}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 167,
+    "completion_tokens": 112
+  }
+}

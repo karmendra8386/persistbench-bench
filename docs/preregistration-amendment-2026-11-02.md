@@ -157,6 +157,38 @@ Consequence: the two-model (Qwen2.5-7B + Qwen3-8B) scale-up is
 cleared *for the formation arm*; the paper's headline still
 depends on G2 (propagation smoke) and the remaining gates.
 
+## I. Gate G2 verdict — FAIL, with a defined retry (2026-11-07)
+
+The propagation smoke ran Nov 7 (Kaggle `persistbench-g2-smoke`
+V2, 20m 38s, repo a4bda23; record `docs/g2-smoke-results.md`,
+outputs `results/g2-smoke/`). **Verdict: FAIL.** Yield 0.903
+PASS; M5 ceiling 24/24 PASS; correction-in-prompt PASS; **M0
+floor 17/24 FAIL**; contrast gate FAIL (eligibility starved by
+the floor failure). Propagation on the eligible subset is
+reported, not gated: Qwen3 0.333 (4/12), Qwen2.5 0.000 (0/5).
+
+Diagnosis (from the 72 transcripts): all 7 M0 failures are
+abstentions (`believed=None`), in two harness-interface classes —
+(1) the `get_shipment` trap: for a `tracking` fact the prompt
+offered a tool keyed BY tracking, and Qwen2.5 looped on argument
+errors until the turn budget ran out (6 cells); (2) an
+answer-format mismatch: `{"stock": 76}` (the origin claim shape)
+rejected where `{"answer": 76}` was required (1 cell). Neither
+class is evidence about propagation.
+
+**H4 narrowing recorded** (from the smoke design note): the live
+dependent does not condition on provenance; a
+provenance-conditioned reader is a new treatment needing its own
+amendment, proposed only if the plain reader propagates.
+
+**Retry (G2b)** — a harness-fix re-run, same config/cells/seed:
+the dependent prompt names each read tool with its key and does
+not offer tools whose key the task cannot supply; the parser
+accepts the fact-keyed answer form and its error states the
+expected answer shape. If the floor still fails after the fix,
+the failures are model behaviour and are reported as such. No
+scale-up spend until a G2 verdict of PASS.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
