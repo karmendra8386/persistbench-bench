@@ -17,6 +17,7 @@ from persistbench.faults import SILENT_WRONG_VALUE
 from persistbench.llm_agent import (
     FakeLLMBackend,
     LLMDependentAgent,
+    offered_read_tools,
     parse_dependent_reply,
 )
 from persistbench.memory import M1SelfSummary, M2Disclosure
@@ -383,3 +384,140 @@ def test_run_dependent_rejects_a_live_agent_without_believed():
     traj = run_origin(CHAIN01, NaiveAgent(), "no_fault", seed=1)
     with pytest.raises(ValueError):
         run_dependent(CHAIN01, traj.world, BrokenLive(), _spec(CHAIN01, 2))
+
+
+# ---------------------------------------------------------------------------
+# G2b regression: the Nov 7 smoke's two M0 failure classes
+# (docs/g2-smoke-results.md; amendment §I retry protocol)
+# ---------------------------------------------------------------------------
+
+def test_offered_read_tools_follow_the_tasks_keys():
+    # chain01 supplies an order id only: get_order(order_id) is the
+    # discovering tool; get_shipment is keyed BY tracking — the very
+    # fact being asked — and must not be offered.
+    assert offered_read_tools(CHAIN01, None) == ["get_order"]
+    # chain05 supplies a sku only.
+    assert offered_read_tools(CHAIN05, None) == ["get_product"]
+    # A stored tracking value supplies get_shipment's key for a task
+    # about a different fact (chain03's tasks ask address + tracking,
+    # and the chain supplies an order id).
+    chain03 = CHAINS_BY_ID["chain03_address_ship_book"]
+    assert offered_read_tools(chain03, {"tracking": "TRK-000003"}) == [
+        "get_order", "get_shipment"]
+    # Nothing suppliable -> nothing offered.
+    assert offered_read_tools({"order": None, "product": None}, None) == []
+
+
+def test_g2b_prompt_names_offered_tools_with_their_keys():
+    traj = run_origin(CHAIN01, NaiveAgent(), "no_fault", seed=1)
+    agent = LLMDependentAgent(
+        FakeLLMBackend(['{"answer": "TRK-000001"}']), None)
+    outcome = agent.run(CHAIN01, traj.world, _spec(CHAIN01, 2))
+    assert "get_order(order_id)" in outcome["prompt"]
+    assert "get_shipment" not in outcome["prompt"]
+
+    traj05 = run_origin(CHAIN05, NaiveAgent(), "no_fault", seed=1)
+    agent05 = LLMDependentAgent(FakeLLMBackend(['{"answer": 40}']), None)
+    outcome05 = agent05.run(CHAIN05, traj05.world, _spec(CHAIN05, 2))
+    assert "get_product(sku)" in outcome05["prompt"]
+    assert "get_order" not in outcome05["prompt"]
+
+
+def test_g2b_class_a_trapped_tool_pattern_recovers_via_get_order():
+    # Replay of the Nov 7 transcript qwen25_chain01_..._M0_s2: the
+    # model called get_shipment with the order id (the tool keyed BY
+    # the tracking fact it was asked for), got argument errors, and
+    # repeated the identical call until the budget ran out. Two
+    # things change: the prompt never offers get_shipment — it names
+    # get_order(order_id), the discovering tool — and the rejection
+    # feedback now states the valid reply shapes explicitly, so the
+    # model recovers via get_order to the correct believed value.
+    traj = run_origin(CHAIN01, NaiveAgent(), "no_fault", seed=1)
+    calls = []
+
+    def reply(messages):
+        calls.append(1)
+        if len(calls) == 1:
+            return '{"tool": "get_shipment", "args": {"order_id": "O1001"}}'
+        if len(calls) == 2:
+            return '{"tool": "get_order", "args": {"order_id": "O1001"}}'
+        return '{"answer": "TRK-000001"}'
+
+    agent = LLMDependentAgent(FakeLLMBackend(reply), None)
+    spec = _spec(CHAIN01, 2)
+    outcome = agent.run(CHAIN01, traj.world, spec)
+    assert outcome["believed"] == "TRK-000001"
+    assert grade_dependent(CHAIN01, traj.world, spec, outcome).correct is True
+    assert outcome["invalid_replies"] == 1
+    assert any("takes args" in entry["reason"]
+               for entry in outcome["parse_log"])
+    # The rejection feedback states the expected shapes explicitly:
+    # the answer JSON and the offered read-tool call with its args.
+    feedback = [t["content"] for t in outcome["transcript"]
+                if t["role"] == "observation"]
+    assert any('"answer"' in str(f) and '"tool": "get_order"' in str(f)
+               and '"order_id"' in str(f) for f in feedback)
+
+
+def test_g2b_wellformed_unoffered_tool_call_is_refused():
+    # A get_shipment call with correctly-shaped args (a guessed
+    # tracking value) parses fine but is still refused before the
+    # world: the tool is not offered for this task at all.
+    traj = run_origin(CHAIN01, NaiveAgent(), "no_fault", seed=1)
+    calls = []
+
+    def reply(messages):
+        calls.append(1)
+        if len(calls) == 1:
+            return '{"tool": "get_shipment", "args": {"tracking": "TRK-000001"}}'
+        if len(calls) == 2:
+            return '{"tool": "get_order", "args": {"order_id": "O1001"}}'
+        return '{"answer": "TRK-000001"}'
+
+    agent = LLMDependentAgent(FakeLLMBackend(reply), None)
+    spec = _spec(CHAIN01, 2)
+    outcome = agent.run(CHAIN01, traj.world, spec)
+    assert outcome["believed"] == "TRK-000001"
+    assert outcome["invalid_replies"] == 1
+    assert any("not available" in entry["reason"]
+               for entry in outcome["parse_log"])
+
+
+@pytest.mark.parametrize("text,exemplar,fact,expected", [
+    ('{"stock": 76}', 0, "stock", 76),
+    ('{"stock": "76"}', 0, "stock", 76),  # coerced to the int exemplar
+    ('{"stock": null}', 0, "stock", None),  # fact-keyed abstention
+    ('{"tracking": "TRK-000001"}', "", "tracking", "TRK-000001"),
+])
+def test_g2b_parse_fact_keyed_answer(text, exemplar, fact, expected):
+    reply, error = parse_dependent_reply(text, exemplar, fact=fact)
+    assert error is None
+    assert reply == {"answer": expected}
+
+
+def test_g2b_fact_keyed_form_needs_the_matching_fact():
+    # Without the fact, {"stock": 76} is still not an answer (the
+    # pre-G2b behaviour), and a different fact's key does not count.
+    reply, error = parse_dependent_reply('{"stock": 76}', 0)
+    assert reply is None and error
+    reply, error = parse_dependent_reply('{"stock": 76}', "", fact="tracking")
+    assert reply is None and error
+
+
+def test_g2b_class_b_fact_keyed_answer_is_accepted():
+    # Replay of the Nov 7 transcript qwen25_chain05_..._M0_s4: the
+    # model held the right value in the origin claim shape
+    # ({"stock": 76}, against the repaired world whose stock really
+    # is 76, correction included) and was rejected with "unknown or
+    # missing tool None" until the budget ran out. The fact-keyed
+    # form now parses to believed=76 on the first reply.
+    traj = run_origin(CHAIN05, NaiveAgent(), SILENT_WRONG_VALUE, seed=1)
+    traj.world.state["products"]["SKU-LAMP"]["stock"] = 76
+    agent = LLMDependentAgent(FakeLLMBackend(['{"stock": 76}']), None)
+    spec = _spec(CHAIN05, 4)
+    outcome = agent.run(CHAIN05, traj.world, spec,
+                        correction={"stock": 76})
+    assert outcome["believed"] == 76
+    assert grade_dependent(CHAIN05, traj.world, spec, outcome).correct is True
+    assert outcome["invalid_replies"] == 0
+    assert "get_product(sku)" in outcome["prompt"]

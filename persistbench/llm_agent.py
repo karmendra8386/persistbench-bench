@@ -657,6 +657,73 @@ DEPENDENT_SYSTEM_PROMPT = (
 )
 
 
+def _task_supplied_keys(chain: dict, memory: dict | None,
+                        correction: dict | None) -> dict:
+    """Identifier values the task itself puts in front of the model.
+
+    A read tool is only useful if the model can supply its required
+    key, and the model can only supply values the task presents: the
+    chain's order id and product sku (already stated in the prompt),
+    any fact value recorded in the stored memory, and the delivered
+    correction. Keys are tool-argument names: ``order_id``/``sku``
+    come from the chain; memory/correction fact keys double as
+    argument names where they match one (``tracking``).
+    """
+    supplied = {}
+    if chain.get("order"):
+        supplied["order_id"] = chain["order"]
+    if chain.get("product"):
+        supplied["sku"] = chain["product"]
+    for source in (memory, correction):
+        if source:
+            for key, value in source.items():
+                if not key.startswith("_") and value is not None:
+                    supplied.setdefault(key, value)
+    return supplied
+
+
+def offered_read_tools(chain: dict, memory: dict | None,
+                       correction: dict | None = None) -> list:
+    """Read tools whose required key the task can supply (G2b).
+
+    Amendment §I: a tool keyed BY the fact being asked about (e.g.
+    ``get_shipment(tracking)`` for a ``tracking`` fact, when the task
+    provides only an order id) must not be offered — in the Nov 7
+    smoke the model name-matched it, passed the order id, and looped
+    on argument errors until the turn budget ran out, while
+    ``get_order(order_id)`` was the discovering tool. The decision is
+    made from the chain/task data via :func:`_task_supplied_keys`,
+    never from a hardcoded chain or tool.
+    """
+    supplied = _task_supplied_keys(chain, memory, correction)
+    return sorted(
+        tool for tool in DEPENDENT_READ_TOOLS
+        if all(arg in supplied for arg in TOOL_ARGS[tool])
+    )
+
+
+def _tool_signatures(tools) -> str:
+    """Render tools with their key signature: ``get_order(order_id)``."""
+    return ", ".join(
+        f"{tool}({', '.join(TOOL_ARGS[tool])})" for tool in tools
+    )
+
+
+def _reply_shape_hint(fact: str, offered_tools) -> str:
+    """The exact reply shapes the parser accepts, for error feedback.
+
+    Amendment §I: the Nov 7 smoke's invalid-reply feedback ("unknown
+    or missing tool None") never told the model what a valid reply
+    looks like, so a model holding the right value in the wrong shape
+    looped to exhaustion. State the shapes explicitly.
+    """
+    shapes = [f'{{"answer": <value of {fact}>}}']
+    for tool in offered_tools:
+        args = ", ".join(f'"{arg}": <{arg}>' for arg in TOOL_ARGS[tool])
+        shapes.append(f'{{"tool": "{tool}", "args": {{{args}}}}}')
+    return "Reply with one JSON object only: " + " or ".join(shapes) + "."
+
+
 def _coerce_answer_value(raw, exemplar):
     """Coerce a JSON answer value against the fact's intended type.
 
@@ -680,15 +747,20 @@ def _coerce_answer_value(raw, exemplar):
     )
 
 
-def parse_dependent_reply(text: str, exemplar):
+def parse_dependent_reply(text: str, exemplar, fact: str | None = None):
     """Parse one dependent reply. Returns (reply, error).
 
     ``reply`` is ``{"answer": value}`` (value may be ``None`` for a
     JSON null — an abstention, not a parse failure) or a validated
-    tool action ``{"tool": ..., "args": ...}``. Anything else — prose,
-    malformed JSON, ``{"done": true}`` with no answer, an unparseable
-    answer value — is an error string; the caller feeds it back as an
-    observation and the world is never touched.
+    tool action ``{"tool": ..., "args": ...}``. When ``fact`` is
+    given, the fact-keyed answer form ``{"<fact>": value}`` — the
+    shape the ORIGIN agent's claim format uses — is also accepted as
+    an answer (G2b, amendment §I: in the Nov 7 smoke a model answered
+    ``{"stock": 76}`` and was rejected despite holding the right
+    value). Anything else — prose, malformed JSON, ``{"done": true}``
+    with no answer, an unparseable answer value — is an error string;
+    the caller feeds it back as an observation and the world is never
+    touched.
     """
     if not text or not text.strip():
         return None, "empty reply"
@@ -720,6 +792,16 @@ def parse_dependent_reply(text: str, exemplar):
         except (ValueError, TypeError) as exc:
             return None, f"unparseable answer {raw!r}: {exc}"
         return {"answer": value}, None
+    if fact is not None and fact in obj and "tool" not in obj:
+        # Fact-keyed answer form: {"stock": 76} for the fact "stock".
+        raw = obj[fact]
+        if raw is None:
+            return {"answer": None}, None
+        try:
+            value = _coerce_answer_value(raw, exemplar)
+        except (ValueError, TypeError) as exc:
+            return None, f"unparseable answer {raw!r}: {exc}"
+        return {"answer": value}, None
     if obj.get("done") is True:
         return None, "done without an answer"
     # A tool call: reuse the action validator (tool/args/type checks).
@@ -733,7 +815,9 @@ class LLMDependentAgent:
     prompt) — never the world DB. When the memory does not record the
     fact it needs (M0, or a partial store), it may call a read tool;
     when the memory records the fact, no tools are offered and the
-    model answers from memory. Annotation keys (``_provenance``,
+    model answers from memory. Offered read tools are named with
+    their key signature, and only those whose key the task can supply
+    are offered at all (G2b, amendment §I — see offered_read_tools). Annotation keys (``_provenance``,
     ``_claims``, ...) are never rendered into the prompt: the reader
     does not condition on provenance (see the H4 decision in
     docs/g2-propagation-smoke-design.md).
@@ -778,7 +862,7 @@ class LLMDependentAgent:
         return self._last_believed
 
     def _user_message(self, chain: dict, spec: dict,
-                      correction: dict | None) -> str:
+                      correction: dict | None, offered_tools=()) -> str:
         fact = spec["fact"]
         context = []
         if chain.get("order"):
@@ -800,12 +884,21 @@ class LLMDependentAgent:
         else:
             raise ValueError(f"unknown dependent kind {spec['kind']!r}")
         parts = [" ".join(context), task] if context else [task]
+        # Offered tools are named WITH their key signature (G2b): the
+        # model must see that get_order is keyed by the order id this
+        # task gives it — and a tool whose key the task cannot supply
+        # is not named at all.
+        if offered_tools:
+            lookup = (
+                "Use a read tool to look the fact up: "
+                + _tool_signatures(offered_tools) + "."
+            )
+        else:
+            lookup = "No read tool can look it up from this task."
         memory = self.memory
         if memory is None:
             parts.append(
-                "Stored memory: none exists for this task. Use a read tool "
-                "(get_order, get_product, or get_shipment) to look the "
-                "fact up."
+                "Stored memory: none exists for this task. " + lookup
             )
         else:
             rendered = "\n".join(
@@ -820,9 +913,7 @@ class LLMDependentAgent:
                 parts.append("Answer from the stored memory above.")
             else:
                 parts.append(
-                    f"The stored memory does not record {fact}. Use a read "
-                    "tool (get_order, get_product, or get_shipment) to look "
-                    "it up."
+                    f"The stored memory does not record {fact}. " + lookup
                 )
         if correction is not None and fact in correction:
             parts.append(
@@ -844,11 +935,19 @@ class LLMDependentAgent:
             else None
         )
         memory_has_fact = self.memory is not None and fact in self.memory
-        tools_available = not memory_has_fact
+        # When the memory records the fact, no tools are offered at
+        # all (existing behaviour). Otherwise, offer only the read
+        # tools whose key this task can supply (G2b) — see
+        # offered_read_tools.
+        offered_tools = (
+            [] if memory_has_fact
+            else offered_read_tools(chain, self.memory, effective_correction)
+        )
+        shape_hint = _reply_shape_hint(fact, offered_tools)
         messages = [
             {"role": "system", "content": DEPENDENT_SYSTEM_PROMPT},
             {"role": "user", "content": self._user_message(
-                chain, spec, effective_correction)},
+                chain, spec, effective_correction, offered_tools)},
         ]
         transcript = []
         parse_log = []
@@ -867,15 +966,15 @@ class LLMDependentAgent:
             usage["completion_tokens"] += generation.completion_tokens
             messages.append({"role": "assistant", "content": generation.text})
             transcript.append({"role": "assistant", "content": generation.text})
-            reply, error = parse_dependent_reply(generation.text, exemplar)
+            reply, error = parse_dependent_reply(
+                generation.text, exemplar, fact=fact)
             if error is not None:
                 invalid_replies += 1
                 parse_log.append({
                     "reply": generation.text, "status": "unknown",
                     "reason": error,
                 })
-                feedback = {"error": f"invalid reply: {error}. "
-                                     "Reply with one JSON object only."}
+                feedback = {"error": f"invalid reply: {error}. {shape_hint}"}
                 messages.append({"role": "user",
                                  "content": f"Observation: {json.dumps(feedback)}"})
                 transcript.append({"role": "observation", "content": feedback})
@@ -889,14 +988,14 @@ class LLMDependentAgent:
                     })
                 break
             tool, kwargs = reply["tool"], reply["args"]
-            if not tools_available or tool not in DEPENDENT_READ_TOOLS:
+            if tool not in offered_tools:
                 invalid_replies += 1
                 parse_log.append({
                     "reply": generation.text, "status": "unknown",
                     "reason": f"tool {tool!r} not available to this dependent",
                 })
                 feedback = {"error": f"tool {tool!r} is not available here. "
-                                     "Reply with one JSON object only."}
+                                     f"{shape_hint}"}
                 messages.append({"role": "user",
                                  "content": f"Observation: {json.dumps(feedback)}"})
                 transcript.append({"role": "observation", "content": feedback})
