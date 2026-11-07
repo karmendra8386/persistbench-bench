@@ -1,0 +1,252 @@
+{
+  "config": {
+    "chains": [
+      "chain01_pay_ship_laptop",
+      "chain05_restock_lamp"
+    ],
+    "dependent_mode": "revising",
+    "fault_conditions": [
+      "silent_wrong_value",
+      "stale_value"
+    ],
+    "load_in_4bit": true,
+    "max_new_tokens": 256,
+    "models": [
+      "Qwen/Qwen2.5-7B-Instruct",
+      "Qwen/Qwen3-8B"
+    ],
+    "policies": [
+      "M0",
+      "M1",
+      "M5"
+    ],
+    "seed": 0,
+    "writes": {
+      "Qwen/Qwen2.5-7B-Instruct": "outputs/pilot_writes.jsonl",
+      "Qwen/Qwen3-8B": "results/qwen3-repilot/pilot_writes.jsonl"
+    }
+  },
+  "cells": 72,
+  "world_repairs": [
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "silent_wrong_value",
+      "policy": "M0",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 76
+        }
+      ]
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "silent_wrong_value",
+      "policy": "M1",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 76
+        }
+      ]
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "silent_wrong_value",
+      "policy": "M5",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 76
+        }
+      ]
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "stale_value",
+      "policy": "M0",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 80
+        }
+      ]
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "stale_value",
+      "policy": "M1",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 80
+        }
+      ]
+    },
+    {
+      "model": "Qwen/Qwen2.5-7B-Instruct",
+      "chain_id": "chain05_restock_lamp",
+      "fault_condition": "stale_value",
+      "policy": "M5",
+      "repair": [
+        {
+          "fact": "stock",
+          "replay_value": 40,
+          "recorded_value": 80
+        }
+      ]
+    }
+  ],
+  "analysis": {
+    "cells": 72,
+    "errors": 0,
+    "answer_yield": {
+      "k": 72,
+      "n": 72,
+      "rate": 1.0,
+      "ci_lo": 0.9493488266449553,
+      "ci_hi": 0.9999999999999999
+    },
+    "m0_correct": {
+      "k": 24,
+      "n": 24,
+      "rate": 1.0,
+      "ci_lo": 0.862023793448672,
+      "ci_hi": 0.9999999999999999
+    },
+    "m5_correct": {
+      "k": 24,
+      "n": 24,
+      "rate": 1.0,
+      "ci_lo": 0.862023793448672,
+      "ci_hi": 0.9999999999999999
+    },
+    "correction_in_all_s4_prompts": true,
+    "contrast_groups": {
+      "Qwen/Qwen2.5-7B-Instruct|chain01_pay_ship_laptop|silent_wrong_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen2.5-7B-Instruct|chain01_pay_ship_laptop|stale_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen2.5-7B-Instruct|chain05_restock_lamp|silent_wrong_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen2.5-7B-Instruct|chain05_restock_lamp|stale_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen3-8B|chain01_pay_ship_laptop|silent_wrong_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen3-8B|chain01_pay_ship_laptop|stale_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen3-8B|chain05_restock_lamp|silent_wrong_value": [
+        2,
+        3,
+        4
+      ],
+      "Qwen/Qwen3-8B|chain05_restock_lamp|stale_value": [
+        2,
+        3,
+        4
+      ]
+    },
+    "per_model": {
+      "Qwen/Qwen2.5-7B-Instruct": {
+        "eligible_sessions": 12,
+        "eligible_groups": 4,
+        "propagation_eligible": {
+          "k": 2,
+          "n": 12,
+          "rate": 0.16666666666666666,
+          "ci_lo": 0.04696514175692082,
+          "ci_hi": 0.4480308646118111
+        },
+        "propagation_raw": {
+          "k": 2,
+          "n": 12,
+          "rate": 0.16666666666666666,
+          "ci_lo": 0.04696514175692082,
+          "ci_hi": 0.4480308646118111
+        },
+        "persistence_s2_to_s3": {
+          "k": 1,
+          "n": 1,
+          "rate": 1.0,
+          "ci_lo": 0.2065493117918027,
+          "ci_hi": 1.0
+        },
+        "correction_resistance_s3_to_s4": {
+          "k": 0,
+          "n": 1,
+          "rate": 0.0,
+          "ci_lo": 0.0,
+          "ci_hi": 0.7934506882081973
+        }
+      },
+      "Qwen/Qwen3-8B": {
+        "eligible_sessions": 12,
+        "eligible_groups": 4,
+        "propagation_eligible": {
+          "k": 4,
+          "n": 12,
+          "rate": 0.3333333333333333,
+          "ci_lo": 0.13812009012485987,
+          "ci_hi": 0.6093779130595061
+        },
+        "propagation_raw": {
+          "k": 4,
+          "n": 12,
+          "rate": 0.3333333333333333,
+          "ci_lo": 0.13812009012485987,
+          "ci_hi": 0.6093779130595061
+        },
+        "persistence_s2_to_s3": {
+          "k": 2,
+          "n": 2,
+          "rate": 1.0,
+          "ci_lo": 0.3423802239546494,
+          "ci_hi": 1.0
+        },
+        "correction_resistance_s3_to_s4": {
+          "k": 0,
+          "n": 2,
+          "rate": 0.0,
+          "ci_lo": 0.0,
+          "ci_hi": 0.6576197760453506
+        }
+      }
+    },
+    "gates": {
+      "answer_yield_ge_80pct": true,
+      "m0_floor_holds": true,
+      "m5_ceiling_holds": true,
+      "no_errors_and_correction_present": true,
+      "contrast_computable": true,
+      "pass": true
+    }
+  }
+}

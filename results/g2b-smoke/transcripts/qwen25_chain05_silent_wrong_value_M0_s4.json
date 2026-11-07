@@ -1,0 +1,29 @@
+{
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "chain_id": "chain05_restock_lamp",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M0",
+  "session": 4,
+  "kind": "report",
+  "fact": "stock",
+  "stored_write": null,
+  "truth": 76,
+  "believed": 76,
+  "correct": true,
+  "correction": {
+    "stock": 76
+  },
+  "prompt": "Product sku: SKU-LAMP.\nReport the value of stock.\nStored memory: none exists for this task. Use a read tool to look the fact up: get_product(sku).\nVerified observation delivered before this session \u2014 it overrides the stored memory for stock: stock: 76.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": 76}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 176,
+    "completion_tokens": 8
+  }
+}

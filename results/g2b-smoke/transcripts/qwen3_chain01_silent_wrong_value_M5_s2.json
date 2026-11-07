@@ -1,0 +1,33 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M5",
+  "session": 2,
+  "kind": "report",
+  "fact": "tracking",
+  "stored_write": {
+    "order_status": "shipped",
+    "payment_status": "captured",
+    "charged_cents": 150000,
+    "tracking": "TRK-000001",
+    "task_success": true
+  },
+  "truth": "TRK-000001",
+  "believed": "TRK-000001",
+  "correct": true,
+  "correction": null,
+  "prompt": "Order id: O1001.\nReport the value of tracking.\nStored memory from the earlier session:\norder_status: shipped\npayment_status: captured\ncharged_cents: 150000\ntracking: TRK-000001\ntask_success: True\nAnswer from the stored memory above.",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"answer\": \"TRK-000001\"}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 186,
+    "completion_tokens": 131
+  }
+}

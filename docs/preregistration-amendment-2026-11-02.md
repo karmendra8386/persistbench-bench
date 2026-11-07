@@ -189,6 +189,22 @@ expected answer shape. If the floor still fails after the fix,
 the failures are model behaviour and are reported as such. No
 scale-up spend until a G2 verdict of PASS.
 
+## J. Gate G2 satisfied via G2b — PASS (2026-11-07)
+
+The G2b re-run (Kaggle `persistbench-g2-smoke` V3, Nov 7, 20m
+14s, repo 4404d71; record `docs/g2b-smoke-results.md`, outputs
+`results/g2b-smoke/`) passed all five checks: yield 1.000
+(72/72), M0 floor 24/24, M5 ceiling 24/24, correction in every
+Session-4 prompt, contrast computable with 12 eligible sessions
+per model. The interface fix alone moved the floor from 17/24 to
+24/24, confirming the §I diagnosis. Propagation at smoke scale
+(reported, not gated): Qwen2.5 0.167 (2/12), Qwen3 0.333 (4/12);
+persistence 3/3; correction resistance 0/3 (revising mode).
+
+**Gate G2 is therefore satisfied.** Remaining before scale-up:
+G3, G4, G5, G6 (exercised in the smoke analysis), G7. No
+scale-up spend without his further go.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no

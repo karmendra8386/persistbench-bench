@@ -1,0 +1,48 @@
+{
+  "model": "Qwen/Qwen3-8B",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "stale_value",
+  "policy": "M0",
+  "session": 3,
+  "kind": "action",
+  "fact": "tracking",
+  "stored_write": null,
+  "truth": "TRK-000001",
+  "believed": "TRK-000001",
+  "correct": true,
+  "correction": null,
+  "prompt": "Order id: O1001.\nA return label must be created for the shipment with this tracking number. Report the value of tracking.\nStored memory: none exists for this task. Use a read tool to look the fact up: get_order(order_id).",
+  "transcript": [
+    {
+      "role": "assistant",
+      "content": "{\"tool\": \"get_order\", \"args\": {\"order_id\": \"O1001\"}}"
+    },
+    {
+      "role": "observation",
+      "content": {
+        "order_id": "O1001",
+        "customer_id": "CUST-1",
+        "sku": "SKU-LAPTOP",
+        "qty": 1,
+        "unit_price_cents": 150000,
+        "total_cents": 150000,
+        "status": "shipped",
+        "payment_status": "captured",
+        "address": "100 Pine St",
+        "payment_id": "PAY-0001",
+        "tracking": "TRK-000001",
+        "cancellation_fee_cents": null
+      }
+    },
+    {
+      "role": "assistant",
+      "content": "{\"answer\": \"TRK-000001\"}"
+    }
+  ],
+  "parse_log": [],
+  "invalid_replies": 0,
+  "usage": {
+    "prompt_tokens": 502,
+    "completion_tokens": 335
+  }
+}
