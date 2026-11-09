@@ -12,6 +12,14 @@ Paper: Karmendra Pandey, *"Fail-Plausible, Then Persistent"* (working title). Ou
 
 *A live harness run (Nov 9, 2026), scripted agents, all 12 chains, two silent faults: with an unverified memory write (M1) the false memory is stored in 12/12 chains and downstream beliefs fall to 55.6–75.0% correct; with a state-verified write (M4) — and at the oracle ceiling (M5) — it is stored in 0/12 and downstream beliefs stay 36/36. The live-model G2b smoke this mirrors (72/72, Kaggle) is in `docs/g2b-smoke-results.md`. Full outputs are in [`demo/`](demo/).*
 
+## Works with
+
+- **[Argus-Bench](https://doi.org/10.5281/zenodo.23877366)** — the sibling benchmark: Argus-Bench scores gateway defences against prompt injection; PersistAIBench scores memory truthfulness over long multi-step tasks. Same discipline — frozen corpora, programmatic scoring, unflattering numbers published.
+- **[Argus](https://github.com/karmendra8386/argus)** — PersistAIBench is one of the evaluation lanes behind Argus Chat, the integrated showcase that runs Argus + [tokenecon](https://github.com/karmendra8386/agentic-ai-token-economics) live and uses the two benchmarks as its eval layer.
+- **[tokenecon](https://github.com/karmendra8386/agentic-ai-token-economics)** — the cost connection: a false memory that survives is a task done wrong and then re-done, so propagation is not only a truthfulness failure — it lands directly in cost per correct.
+
+**The connected set** — one thread through all of it: what an agent did, what it cost, and whether it should have been allowed. [Argus](https://github.com/karmendra8386/argus) · [tokenecon](https://github.com/karmendra8386/agentic-ai-token-economics) · [mcplens](https://github.com/karmendra8386/mcplens) · [agent-cost-mcp-server](https://github.com/karmendra8386/agent-cost-mcp-server) · [Argus Lens](https://github.com/karmendra8386/argus-lens) · [PersistAIBench](https://github.com/karmendra8386/persistbench-bench) · [Argus-Bench](https://doi.org/10.5281/zenodo.23877366)
+
 ## Quickstart
 
 ```bash
