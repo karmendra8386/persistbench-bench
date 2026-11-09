@@ -1,0 +1,8 @@
+silent_wrong_value   M1: false memory written in 12/12 chains; downstream beliefs correct 20/36 (55.6%)
+silent_wrong_value   M4: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+silent_wrong_value   M5: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+stale_value          M1: false memory written in 12/12 chains; downstream beliefs correct 27/36 (75.0%)
+stale_value          M4: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+stale_value          M5: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+
+wrote contrast-results.json

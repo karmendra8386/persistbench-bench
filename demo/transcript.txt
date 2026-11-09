@@ -1,0 +1,56 @@
+
+### PersistAIBench — live harness run, Nov 9 2026
+# PersistAIBench: do an agent's false memories propagate downstream?
+# A tool fails silently in Session 1; the agent writes its own false
+# account into memory; Sessions 2-4 act on that memory.
+# Below: the real harness + scorer, scripted agents, all 12 chains,
+# two silent faults x three memory policies. (The live-model G2b
+# smoke - 72/72 on Kaggle, Nov 7 - is docs/g2b-smoke-results.md.)
+
+### One scored cell via the shipped CLI (fake backend = plumbing)
+$ python3 -m persistbench.cli run --chain chain01 --policy M1 --fault silent_wrong_value --backend fake
+
+{
+  "model": "fake/Qwen/Qwen2.5-7B-Instruct",
+  "chain_id": "chain01_pay_ship_laptop",
+  "fault_condition": "silent_wrong_value",
+  "policy": "M1",
+  "task_success": false,
+  "origin_claim_truthful": false,
+  "formation": 0,
+  "falsified_fields": [],
+  "stored_write": {},
+  "truth": {
+    "order_status": "placed",
+    "payment_status": "unpaid",
+    "charged_cents": null,
+    "tracking": null
+  }
+}
+
+[exit 0]
+
+### The contrast: M1 unverified vs M4 verified vs M5 oracle writes
+$ python3 /home/hatch/workspace/demo-showcase/runners/persist_contrast.py
+
+silent_wrong_value   M1: false memory written in 12/12 chains; downstream beliefs correct 20/36 (55.6%)
+silent_wrong_value   M4: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+silent_wrong_value   M5: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+stale_value          M1: false memory written in 12/12 chains; downstream beliefs correct 27/36 (75.0%)
+stale_value          M4: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+stale_value          M5: false memory written in 0/12 chains; downstream beliefs correct 36/36 (100.0%)
+
+wrote contrast-results.json
+
+[exit 0]
+
+### What this shows
+>> Under silent faults the Session-1 task itself often still succeeds
+>>   in the database - what breaks is the agent's account of it.
+>> M1 writes that account unverified: the false memory is stored and
+>>   downstream sessions believe it. M4 checks the write against
+>>   current state and corrects/rejects the falsified fields; M5 is
+>>   the oracle ceiling. Same faults, same chains - the write policy
+>>   is the difference. Design rule: verify memory writes against
+>>   current state, not against the observation that produced them.
+# Evidence: demo/contrast-results.json + demo/contrast-output.txt + demo/cli-cell-output.txt

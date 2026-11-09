@@ -6,6 +6,12 @@ PersistAIBench (harness/repo name: PersistBench) measures one unmeasured chain: 
 
 Paper: Karmendra Pandey, *"Fail-Plausible, Then Persistent"* (working title). Outline approved 2026-10-23; filed in Google Drive EB1 §03 (`persistbench-outline.pdf`, `persistbench-outline-record-2026-10-23.md`).
 
+## Demo
+
+![PersistAIBench demo](demo/demo.gif)
+
+*A live harness run (Nov 9, 2026), scripted agents, all 12 chains, two silent faults: with an unverified memory write (M1) the false memory is stored in 12/12 chains and downstream beliefs fall to 55.6–75.0% correct; with a state-verified write (M4) — and at the oracle ceiling (M5) — it is stored in 0/12 and downstream beliefs stay 36/36. The live-model G2b smoke this mirrors (72/72, Kaggle) is in `docs/g2b-smoke-results.md`. Full outputs are in [`demo/`](demo/).*
+
 ## Quickstart
 
 ```bash

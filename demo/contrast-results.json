@@ -1,0 +1,56 @@
+[
+ {
+  "fault": "silent_wrong_value",
+  "policy": "M1",
+  "chains": 12,
+  "false_memory_writes": 12,
+  "downstream_correct": 20,
+  "downstream_total": 36,
+  "downstream_accuracy": 0.556
+ },
+ {
+  "fault": "silent_wrong_value",
+  "policy": "M4",
+  "chains": 12,
+  "false_memory_writes": 0,
+  "downstream_correct": 36,
+  "downstream_total": 36,
+  "downstream_accuracy": 1.0
+ },
+ {
+  "fault": "silent_wrong_value",
+  "policy": "M5",
+  "chains": 12,
+  "false_memory_writes": 0,
+  "downstream_correct": 36,
+  "downstream_total": 36,
+  "downstream_accuracy": 1.0
+ },
+ {
+  "fault": "stale_value",
+  "policy": "M1",
+  "chains": 12,
+  "false_memory_writes": 12,
+  "downstream_correct": 27,
+  "downstream_total": 36,
+  "downstream_accuracy": 0.75
+ },
+ {
+  "fault": "stale_value",
+  "policy": "M4",
+  "chains": 12,
+  "false_memory_writes": 0,
+  "downstream_correct": 36,
+  "downstream_total": 36,
+  "downstream_accuracy": 1.0
+ },
+ {
+  "fault": "stale_value",
+  "policy": "M5",
+  "chains": 12,
+  "false_memory_writes": 0,
+  "downstream_correct": 36,
+  "downstream_total": 36,
+  "downstream_accuracy": 1.0
+ }
+]
