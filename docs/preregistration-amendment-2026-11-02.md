@@ -205,6 +205,19 @@ persistence 3/3; correction resistance 0/3 (revising mode).
 G3, G4, G5, G6 (exercised in the smoke analysis), G7. No
 scale-up spend without his further go.
 
+## K. Gate G3 satisfied — PASS (2026-11-15)
+
+Hardened classifier gate (record `docs/g3-classifier-gate-results.md`,
+files `results/g3/`): 58 fresh non-empty M1–M3 writes, stratified
+model x policy x fault across both pilot arms, labelled blind by
+two raters. Inter-rater agreement 57/58, **Cohen's kappa 0.962**
+(bar 0.75); **classifier agreement vs adjudicated consensus
+55/58 = 94.8%** (bar 90%). The three disagreements are one
+documented definition boundary (task_success judged against the
+intended end-state — the preregistered scorer definition, kept)
+plus one placeholder-literalism case; no classifier change
+follows. Remaining before scale-up: G4, G5, G6, G7.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
