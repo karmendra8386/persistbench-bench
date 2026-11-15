@@ -246,6 +246,17 @@ MODEL (the original ~3,600 figure was per-model, not total);
 the model set is a budget choice, not a power requirement.
 Remaining before scale-up: G6, G7.
 
+## N. Gate G6 satisfied — PASS (2026-11-15)
+
+Eligibility filter formalized (record
+`docs/g6-eligibility-filter-results.md`): the §F.14 filter now
+lives in `persistbench/eligibility.py` (eligibility_map,
+contrast_groups, model_rates, propagation_report); the smoke
+analysis delegates to it with byte-identical output on both
+frozen cell sets, and reproduction tests match both recorded
+smokes exactly (G2: 5 vs 12 eligible; G2b: 12 vs 12, rates
+identical). Suite 3,806 passed. Remaining before scale-up: G7.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no

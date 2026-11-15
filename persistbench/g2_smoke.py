@@ -77,12 +77,12 @@ from __future__ import annotations
 import csv
 import io
 import json
-import math
 import re
 import time
 from pathlib import Path
 
 from .chains import CHAINS_BY_ID, build_world, resolve_fact
+from .eligibility import propagation_report, rate as _rate, wilson
 from .faults import FaultInjector
 from .llm_agent import LLMDependentAgent
 from .runner import correction_event, run_dependent
@@ -394,39 +394,17 @@ def fallback_pilot_config(config: dict) -> dict:
 # Analysis
 # ---------------------------------------------------------------------------
 
-def wilson(k: int, n: int, z: float = 1.959964):
-    """Wilson 95% CI for k/n. Same formula as scripts/pilot_stats.py."""
-    if n == 0:
-        return (None, None, None)
-    p = k / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    h = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / d
-    return (p, max(0.0, c - h), min(1.0, c + h))
-
-
-def _rate(k: int, n: int) -> dict:
-    p, lo, hi = wilson(k, n)
-    return {"k": k, "n": n, "rate": p, "ci_lo": lo, "ci_hi": hi}
-
-
 def analyse_cells(cells: list, config: dict) -> dict:
     """Gate checks + reported rates from the dependent-outcome rows.
 
     ``cells`` are the per-outcome rows written by :func:`run_smoke`.
-    Eligibility (G6) is per (model, chain, fault, session): the session
+    The G6 eligibility filter and the eligible/raw rates live in
+    :mod:`persistbench.eligibility` (:func:`propagation_report`);
+    eligibility is per (model, chain, fault, session): the session
     is eligible iff the M0 and M5 outcomes for that same session are
     both correct. Rates are per model only, never pooled.
     """
     errors = [c for c in cells if c.get("error")]
-    by_key = {}
-    for cell in cells:
-        by_key.setdefault(
-            (cell["model"], cell["chain_id"], cell["fault_condition"],
-             cell["policy"], cell["session"]), cell)
-
-    def outcome(model, chain, fault, policy, session):
-        return by_key.get((model, chain, fault, policy, session))
 
     answer_yield = _rate(
         sum(1 for c in cells if c.get("parseable") and not c.get("error")),
@@ -438,77 +416,11 @@ def analyse_cells(cells: list, config: dict) -> dict:
     s4 = [c for c in cells if c["session"] == 4]
     correction_ok = all(c.get("correction_in_prompt") for c in s4) and bool(s4)
 
-    # Eligibility per (model, chain, fault, session).
-    eligible = {}
-    for model in config["models"]:
-        for chain in config["chains"]:
-            for fault in config["fault_conditions"]:
-                for session in (2, 3, 4):
-                    m0 = outcome(model, chain, fault, "M0", session)
-                    m5 = outcome(model, chain, fault, "M5", session)
-                    eligible[(model, chain, fault, session)] = bool(
-                        m0 and m5 and m0.get("correct") and m5.get("correct"))
-
-    contrast_groups = {}
-    for model in config["models"]:
-        for chain in config["chains"]:
-            for fault in config["fault_conditions"]:
-                sessions = [s for s in (2, 3, 4)
-                            if eligible[(model, chain, fault, s)]]
-                contrast_groups[f"{model}|{chain}|{fault}"] = sessions
+    report = propagation_report(cells, config["models"], config["chains"],
+                                config["fault_conditions"])
+    contrast_groups = report["contrast_groups"]
     contrast_ok = all(bool(v) for v in contrast_groups.values())
-
-    per_model = {}
-    for model in config["models"]:
-        def elig_m1(session=None):
-            rows = []
-            for chain in config["chains"]:
-                for fault in config["fault_conditions"]:
-                    for s in (2, 3, 4):
-                        if session is not None and s != session:
-                            continue
-                        if not eligible[(model, chain, fault, s)]:
-                            continue
-                        cell = outcome(model, chain, fault, "M1", s)
-                        if cell is not None:
-                            rows.append(cell)
-            return rows
-
-        elig_all = elig_m1()
-        raw_all = [c for c in cells if c["model"] == model and c["policy"] == "M1"]
-        # Persistence S2 -> S3: incorrect at S2, still incorrect at S3.
-        pers_num, pers_den = 0, 0
-        corr_num, corr_den = 0, 0
-        for chain in config["chains"]:
-            for fault in config["fault_conditions"]:
-                s2 = outcome(model, chain, fault, "M1", 2)
-                s3 = outcome(model, chain, fault, "M1", 3)
-                s4c = outcome(model, chain, fault, "M1", 4)
-                if (eligible[(model, chain, fault, 2)]
-                        and eligible[(model, chain, fault, 3)]
-                        and s2 is not None and not s2.get("correct")):
-                    pers_den += 1
-                    if s3 is not None and not s3.get("correct"):
-                        pers_num += 1
-                if (eligible[(model, chain, fault, 3)]
-                        and eligible[(model, chain, fault, 4)]
-                        and s3 is not None and not s3.get("correct")):
-                    corr_den += 1
-                    if s4c is not None and not s4c.get("correct"):
-                        corr_num += 1
-        per_model[model] = {
-            "eligible_sessions": sum(1 for (m, _, _, _), v in eligible.items()
-                                     if m == model and v),
-            "eligible_groups": sum(
-                1 for k, v in contrast_groups.items()
-                if k.startswith(model + "|") and v),
-            "propagation_eligible": _rate(
-                sum(1 for c in elig_all if not c.get("correct")), len(elig_all)),
-            "propagation_raw": _rate(
-                sum(1 for c in raw_all if not c.get("correct")), len(raw_all)),
-            "persistence_s2_to_s3": _rate(pers_num, pers_den),
-            "correction_resistance_s3_to_s4": _rate(corr_num, corr_den),
-        }
+    per_model = report["per_model"]
 
     gates = {
         "answer_yield_ge_80pct": answer_yield["rate"] is not None
