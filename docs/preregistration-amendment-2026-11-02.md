@@ -229,6 +229,23 @@ x 5 faults x M0–M5) with 0 exceptions and all 240 no-fault
 M0/M5 baselines correct. The formal-reduction alternative was
 not needed. Remaining before scale-up: G5, G6, G7.
 
+## M. Gate G5 satisfied — PASS (2026-11-15)
+
+Power restatement (record `docs/g5-power-restatement.md`,
+computation `scripts/power_restatement.py`): at the frozen
+design (40 chains x 5 faults x 3 seeds), every primary contrast
+is powered — formation M1 vs M3 paired needs 79 origins/model,
+delivered 600 fault-pooled / 120 per fault; propagation M1 vs M5
+needs 47/arm, delivered 288–384 eligible/model across the
+0.6–0.8 eligibility sensitivity; the M3 visibility dissociation
+needs 5/arm. Persistence/correction-resistance stay secondary
+(CI ±0.10–0.115, no power claim). Per-fault claims are
+pre-registered to the chain x seed unit with chain-clustered
+intervals (§F.16). Restated grid cost: 3,600 origin runs PER
+MODEL (the original ~3,600 figure was per-model, not total);
+the model set is a budget choice, not a power requirement.
+Remaining before scale-up: G6, G7.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
