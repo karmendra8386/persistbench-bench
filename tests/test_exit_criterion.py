@@ -35,9 +35,10 @@ def _grade(chain, agent, fault):
 
 # ---- suite shape ----------------------------------------------------------
 
-def test_suite_has_12_chains():
-    assert len(CHAINS) == 12
-    assert len(set(CHAIN_IDS)) == 12
+def test_suite_has_40_chains():
+    # Gate G4: the suite grew from the Week 1 twelve to forty chains.
+    assert len(CHAINS) == 40
+    assert len(set(CHAIN_IDS)) == 40
 
 
 @pytest.mark.parametrize("chain", CHAINS, ids=CHAIN_IDS)

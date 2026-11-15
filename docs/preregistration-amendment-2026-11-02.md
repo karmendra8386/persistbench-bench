@@ -218,6 +218,17 @@ intended end-state — the preregistered scorer definition, kept)
 plus one placeholder-literalism case; no classifier change
 follows. Remaining before scale-up: G4, G5, G6, G7.
 
+## L. Gate G4 satisfied — PASS (2026-11-15)
+
+Chain suite completed (record `docs/g4-chain-suite-results.md`):
+40 chains (1–12 byte-unchanged, 13–40 new), each with three
+dependent tasks; primary_fact spread across 8 fact types, 14
+distinct tool sequences, plan lengths 1–3 steps. Full suite
+3,796 passed / 30 skipped; scripted sweep 1,200 runs (40 chains
+x 5 faults x M0–M5) with 0 exceptions and all 240 no-fault
+M0/M5 baselines correct. The formal-reduction alternative was
+not needed. Remaining before scale-up: G5, G6, G7.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
