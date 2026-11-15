@@ -257,6 +257,23 @@ frozen cell sets, and reproduction tests match both recorded
 smokes exactly (G2: 5 vs 12 eligible; G2b: 12 vs 12, rates
 identical). Suite 3,806 passed. Remaining before scale-up: G7.
 
+## O. Gate G7 satisfied — PASS (2026-11-15)
+
+Populated-store sensitivity arm (record
+`docs/g7-populated-store-results.md`; design
+`docs/g7-populated-store-design.md`): the G2b grid re-run with
+the store pre-populated with true, key-disjoint distractor
+entries from other chains' worlds (chain01: 4, chain05: 7;
+9-entry stores, the flat-namespace maximum). Kaggle run exit 0,
+yield 72/72, M0/M5 24/24. Result: a clean null — propagation,
+persistence and correction resistance numerically identical to
+the empty-store G2b values for both models (every delta
++0.000). Scope: the arm tests distraction by unrelated
+legitimate memory; same-key competition is unrepresentable in
+the flat store and remains a paper limitation, as does
+read-time-only population. **All gates G1–G7 are satisfied.**
+The scale-up itself (grid costed in §M) is a separate decision.
+
 ## G. What this amendment does NOT change
 
 Fault taxonomy (5), policy set (M0–M5), programmatic scoring with no
