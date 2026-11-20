@@ -139,6 +139,19 @@ If you use PersistAIBench in your work, please cite the software record on Zenod
 }
 ```
 
+**Combined paper**
+
+```bibtex
+@misc{pandey2026guarded,
+  author       = {Pandey, Karmendra},
+  title        = {Guarded at the Door, Honest in Memory: Verifying AI Agents End to End — Argus-Bench and PersistAIBench},
+  year         = {2026},
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.24269170},
+  url          = {https://doi.org/10.5281/zenodo.24269170}
+}
+```
+
 A `CITATION.cff` is included for automated citation tooling.
 
 **DOI:** the v0.1.0 software release is archived on Zenodo as [10.5281/zenodo.23893975](https://doi.org/10.5281/zenodo.23893975) (concept DOI: [10.5281/zenodo.23893974](https://doi.org/10.5281/zenodo.23893974), which always resolves to the latest version). The accompanying paper (*"Fail-Plausible, Then Persistent"*, working title) is unpublished.
